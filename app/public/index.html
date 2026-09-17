@@ -1,0 +1,1838 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<title>ZJU Recorder</title>
+<script>
+  // 在样式表加载前应用主题，避免页面闪烁。
+  (function () {
+    const t = localStorage.getItem('theme') ||
+      (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+
+<!-- 图标 sprite：24×24、1.75px 描边、currentColor。用 <use href="#i-xxx"> 引用 -->
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.4-3.4"/></symbol>
+  <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" rx="1.5"/><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12.5h4"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8L3.6 9.7l5.8-.8z"/></symbol>
+  <symbol id="i-record" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.6" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 4 12 2.5-6h5"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17l4.5-4.2 3.6 3.2 3-2.6 3.9 3.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/></symbol>
+  <symbol id="i-drive" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="5.6" rx="2"/><rect x="3" y="13.4" width="18" height="5.6" rx="2"/><path d="M7 7.8h.01M7 16.2h.01"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="4"/><path d="M4.5 20c1.6-3.6 4.3-5.4 7.5-5.4S18 16.4 19.5 20"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M19.5 12h-15"/><path d="M10.5 6l-6 6 6 6"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10.2 13.6a4 4 0 0 0 5.6 0l3-3a4 4 0 0 0-5.6-5.7l-1.2 1.2"/><path d="M13.8 10.4a4 4 0 0 0-5.6 0l-3 3a4 4 0 0 0 5.6 5.7l1.2-1.2"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 9.5A8.5 8.5 0 1 1 5.6 17"/><path d="M4 4.5v5h5"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 18.4 7"/><path d="M20 19.5v-5h-5"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v10"/><path d="M8 10.5l4 4 4-4"/><path d="M5 18.5h14"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13.5 3L6 13.5h5l-1 7.5 8-11h-5z"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M10.4 8.8l5 3.2-5 3.2z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15"/><path d="M9.5 7V5.5A1.5 1.5 0 0 1 11 4h2a1.5 1.5 0 0 1 1.5 1.5V7"/><path d="M6.6 7l.8 12a2 2 0 0 0 2 1.9h5.2a2 2 0 0 0 2-1.9L17.4 7"/><path d="M10.5 11v6M13.5 11v6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M14.5 6.5L9 12l5.5 5.5"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9.5 6.5L15 12l-5.5 5.5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 6.5A2.5 2.5 0 0 0 12.5 4H7.5A2.5 2.5 0 0 0 5 6.5v5A2.5 2.5 0 0 0 7.5 14"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9.5" y="3.5" width="5" height="10" rx="2.5"/><path d="M6.5 11.5a5.5 5.5 0 0 0 11 0"/><path d="M12 17v3.5"/></symbol>
+  <symbol id="i-cloud-down" viewBox="0 0 24 24"><path d="M7.5 16.5A4 4 0 0 1 7 8.6a5.2 5.2 0 0 1 10 1.4 3.6 3.6 0 0 1-.5 6.5"/><path d="M12 12v6"/><path d="M9.5 15.5L12 18l2.5-2.5"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M4 4l16 16"/><path d="M9.6 5.9A9.7 9.7 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17.5 17.5 0 0 1-3.2 3.9"/><path d="M6.4 7.6A17 17 0 0 0 2.5 12S6 18.5 12 18.5c1.2 0 2.3-.2 3.3-.6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.5v2.2M12 18.3v2.2M4.9 7.5l1.9 1.1M17.2 15.4l1.9 1.1M4.9 16.5l1.9-1.1M17.2 8.6l1.9-1.1"/></symbol>
+</svg>
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="logo" href="#/">
+      <!-- logo：描边摄像机，空心圆角框 + 描边机身 + 一个红点作录制指示。
+           比 A 的实心块更轻，且仍然是"单一主色 + 一个点缀"，不炫彩。 -->
+      <svg class="logo-mark" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="4.5" y="4.5" width="55" height="55" rx="16" fill="none" stroke="currentColor" stroke-width="4"/>
+        <path d="M17.5 26c0-2.2 1.8-4 4-4h19c2.2 0 4 1.8 4 4v14c0 2.2-1.8 4-4 4h-19c-2.2 0-4-1.8-4-4V26Z"
+              fill="none" stroke="currentColor" stroke-width="4"/>
+        <path d="M44.5 31.5l8-5v13l-8-5" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        <circle cx="27" cy="33" r="4.6" fill="#FF5C4D"/>
+      </svg>
+      <span class="logo-txt">ZJU 直播</span>
+    </a>
+    <nav class="nav-menu" id="navMenu"></nav>
+    <div class="nav-search">
+      <input id="navSearch" type="text" placeholder="搜课程 / 教师 / 教室" autocomplete="off" />
+      <svg class="ico" aria-hidden="true"><use href="#i-search"></use></svg>
+    </div>
+    <div class="nav-right">
+      <span class="chip" id="storageChip" title="录制目录占用">—</span>
+      <button class="icon-btn" id="thumbBtn" aria-label="封面抓帧"></button>
+      <button class="icon-btn" id="themeToggle" aria-label="切换明暗"></button>
+      <!-- 头像：既是状态也是二级菜单的入口。选过本地图就显示图（完全不外传），
+           右下角那个点是令牌状态（绿=有效、红=失效），状态说明走悬停提示。 -->
+      <button class="avatar-btn" id="avatarBtn" aria-label="账号、设置与查老师" data-tip="">
+        <img id="avatarImg" alt="" hidden />
+        <span class="avatar-fb" id="avatarFallback">令</span>
+        <span class="avatar-dot" id="avatarDot"></span>
+      </button>
+    </div>
+  </div>
+</header>
+<div class="menu" id="avatarMenu" hidden></div>
+
+<main id="view"><div class="loading">加载中…</div></main>
+<div id="toast"></div>
+
+<div class="overlay" id="modal"><div class="modal" id="modalBody"></div></div>
+<!-- 侧边抽屉：预约/星标/录制任务/已缓存/诊断/设置都从这里滑出来，
+     而不是换页 —— 换页会把正在播的详情页销毁，视频就断了。
+     高度从顶栏下面开始，所以导航仍然可点；遮罩很淡，左边的视频还能看见。 -->
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h3 id="drawerTitle">面板</h3>
+    <span class="spacer"></span>
+    <button class="key" id="drawerClose">关闭</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<script src="/lib/zju-core.js"></script>
+<script src="/lib/zju-media.js"></script>
+<script src="/lib/zju-asr.js"></script>
+<script>
+(function () {
+'use strict';
+const { $, el, esc, toast, api, postJson, fmtDur, fmtRemain, fmtBytes, fmtCount,
+        fmtClock, fmtDateTime, initTheme, toggleTheme } = window.ZJU;
+const { Media, Asr } = { Media: window.ZJU.Media, Asr: window.ZJU.Asr };
+
+initTheme();
+
+// ============================================================
+//  全局状态
+// ============================================================
+const store = {
+  courses: [],           // 归一化后的课程
+  byKey: new Map(),      // "courseId-subId" -> 课程（详情页要立刻能渲染）
+  jobs: [], marks: [], stars: [], cache: [],
+  chalao: null,          // 查老师评分（本机缓存，只有点「同步」时才出网）
+  storage: { bytes: 0, files: 0 },
+  filter: { type: '1', liveOnly: true, q: '', teacher: '', date: '', quantum: '', college: '', room: '', zone: '', page: 1 },
+  PAGE: 24,
+};
+const keyOf = (courseId, subId) => courseId + '-' + subId;
+
+// 无封面时的占位是**中性灰**（见 CSS 的 --ph-bg），不按课程散列颜色。
+// 不对课程做散列配色：一屏 24 张会成为彩虹，配色须克制。
+const initial = (s) => String(s || '?').trim().charAt(0) || '?';
+
+// 教学楼 → 分区。
+// 匹配方式是 room.includes(key) 子串匹配，所以 key 用中文校区名。
+// 「义乌」已去掉：它是真实的 YiwuBuildingA/B（一带一路国际医学院在义乌），但课少没人看；
+const ZONES = [
+  { name: '紫金港东', key: '紫金港东' },
+  { name: '紫金港西', key: '紫金港西' },
+  { name: '紫金港北', key: '紫金港北' },
+  { name: '玉泉', key: '玉泉' },
+  { name: '西溪', key: '西溪' },
+  { name: '华家池', key: '华家池' },
+  { name: '之江', key: '之江' },
+  { name: '舟山', key: '舟山' },
+];
+
+// ============================================================
+//  导航
+// ============================================================
+// 只保留有信息量的入口（首页 = 点 logo，正在直播 = 首页默认视图，诊断从课程页进入）：
+// 首页 = 点左上角 logo；正在直播 = 首页默认就是"只看可看"；诊断 = 从课程页的「播放诊断」进。
+// ============================================================
+//  图标（内联 sprite）与「键」的构造器
+// ============================================================
+// 功能键用符号表达，配合符号动画与二级界面，不把文字塞进方框。
+// 所以能一眼认出来的动作都用图标（说明走悬停的 data-tip），只有真正需要文字提示的才留文字
+// 图标本体在 body 开头的 <svg class="sprite"> 中，24×24、1.75px 描边。
+const SVGNS = 'http://www.w3.org/2000/svg';
+function icon(name, cls) {
+  const s = document.createElementNS(SVGNS, 'svg');
+  s.setAttribute('class', 'ico' + (cls ? ' ' + cls : ''));
+  s.setAttribute('aria-hidden', 'true');
+  s.setAttribute('focusable', 'false');
+  const u = document.createElementNS(SVGNS, 'use');
+  u.setAttribute('href', '#i-' + name);
+  s.appendChild(u);
+  return s;
+}
+// 图标键：只有一个图标，说明挂在 data-tip 上（悬停/聚焦时浮出来）
+function iconBtn(name, label, onclick, cls) {
+  const b = el('button', 'icon-btn' + (cls ? ' ' + cls : ''));
+  b.setAttribute('data-tip', label);
+  b.setAttribute('aria-label', label);
+  b.appendChild(icon(name));
+  if (onclick) b.onclick = onclick;
+  return b;
+}
+// 图标 + 文字：只有"光看图标不敢确定"的动作才这么用
+function iconKey(name, label, onclick, cls) {
+  const b = el('button', 'key' + (cls ? ' ' + cls : ''));
+  b.setAttribute('aria-label', label);
+  b.appendChild(icon(name, 'sm'));
+  b.appendChild(el('span', null, label));
+  if (onclick) b.onclick = onclick;
+  return b;
+}
+// 忙碌态：图标转起来（符号动画 —— 比把按钮文字改成"刷新中…"更省地方也更直观）
+function spinBtn(b, busy) {
+  if (!b) return;
+  b.classList.toggle('busy', !!busy);
+  b.disabled = !!busy;
+}
+// 小弹层（二级界面）：点一个按钮后从它下面浮出来选下一层，比如「导出」→ TXT / SRT。
+// 两级交互：先点按钮，再从浮层里选具体项。
+let popEl = null;
+function closePop() { if (popEl) { popEl.remove(); popEl = null; } }
+function showPop(anchor, items) {
+  closePop();
+  const m = el('div', 'menu pop');
+  for (const it of items) {
+    const b = el('button', 'mi');
+    b.appendChild(icon(it.icon, 'sm'));
+    b.appendChild(el('span', null, it.label));
+    b.onclick = () => { closePop(); it.fn(); };
+    m.appendChild(b);
+  }
+  document.body.appendChild(m);            // 先挂上去才能量宽度
+  const r = anchor.getBoundingClientRect();
+  m.style.top = Math.round(r.bottom + 6) + 'px';
+  m.style.left = Math.round(Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8))) + 'px';
+  popEl = m;
+}
+
+// ============================================================
+//  导航
+// ============================================================
+// 只保留有信息量的入口（首页 = 点 logo，正在直播 = 首页默认视图，诊断从课程页进入）：
+// 首页 = 点左上角 logo；正在直播 = 首页默认就是"只看可看"；诊断 = 从课程页的「播放诊断」进。
+const NAV = [
+  { id: 'cache', label: '已缓存地址', icon: 'archive', hash: '#/cache' },
+  { id: 'marks', label: '预约录制', icon: 'clock', hash: '#/marks' },
+  { id: 'stars', label: '星标', icon: 'star', hash: '#/stars' },
+  { id: 'jobs', label: '录制任务', icon: 'record', hash: '#/jobs', badge: () => store.jobs.filter((j) => j.status === 'recording' || j.status === 'retrying').length },
+];
+function renderNav(active) {
+  const box = $('#navMenu');
+  box.textContent = '';
+  for (const n of NAV) {
+    const b = el('button', 'nav-icon' + (n.id === active ? ' on' : ''));
+    b.setAttribute('data-tip', n.label);
+    b.setAttribute('aria-label', n.label);
+    b.appendChild(icon(n.icon, 'lg'));
+    const badge = n.badge ? n.badge() : 0;
+    if (badge) b.appendChild(el('span', 'badge', String(badge)));
+    b.onclick = () => { location.hash = n.hash; };
+    box.appendChild(b);
+  }
+}
+
+// ============================================================
+//  封面
+// ============================================================
+// 封面由服务端抓帧，并发数限制为 2。503 使用退避重试，404 按无可用封面处理。
+const _blobUrls = [];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function revokeThumbs() { while (_blobUrls.length) { try { URL.revokeObjectURL(_blobUrls.pop()); } catch {} } }
+async function loadThumb(img, courseId, subId) {
+  const q = '/api/thumb?course_id=' + encodeURIComponent(courseId) + '&sub_id=' + encodeURIComponent(subId);
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (!img.isConnected) return;                 // 翻页/离开了就别再拉
+    try {
+      const r = await fetch(q);
+      if (r.status === 503) { await sleep(1000 + attempt * 1500); continue; }   // 忙 → 退避
+      if (!r.ok) return;                                                        // 404 → 留渐变底
+      const blob = await r.blob();
+      if (!img.isConnected) return;
+      const bu = URL.createObjectURL(blob);
+      _blobUrls.push(bu);
+      img.src = bu;
+      // 图到手就把那块平灰占位淡掉：它是盒子里的另一层，不淡掉会一直挡在图上面
+      const ph = img.previousElementSibling;
+      if (ph && ph.classList && ph.classList.contains('ph')) ph.style.opacity = '0';
+      return;
+    } catch { await sleep(1200); }
+  }
+}
+// 封面抓帧：**按可视区域触发**，不设张数上限。
+// 注意：不要退回"每屏固定张数"的写法 —— 那类全局计数器在翻页后不会重置，
+// 会导致后续页面一张都不抓。当前策略：
+//   卡片滚进视口（含 200px 预读）才排进队列 → 客户端最多 3 个并发 → 服务端自己也有
+//   3 并发的闸门（忙就回 503，前端指数退避）。每张封面 = 服务端真去拉一段直播流解一帧，
+//   约 0.3~0.6MB 上游流量；同一门课 30 分钟内再看是命中磁盘缓存，不再出网。
+const THUMB_PARALLEL = 4;      // 客户端并发（服务端自己有 5 个闸门，别把它喂满就够）
+let showThumbs = false;
+try { showThumbs = localStorage.getItem('zju_thumbs') === '1'; } catch {}
+const thumbQueue = [];
+let thumbInFlight = 0;
+function pumpThumbs() {
+  while (thumbInFlight < THUMB_PARALLEL && thumbQueue.length) {
+    const t = thumbQueue.shift();
+    thumbInFlight++;
+    loadThumb(t.img, t.course_id, t.sub_id).catch(() => {}).then(() => { thumbInFlight--; pumpThumbs(); });
+  }
+}
+function enqueueThumb(img, c) { thumbQueue.push({ img, course_id: c.course_id, sub_id: c.sub_id }); pumpThumbs(); }
+let thumbObserver = null;
+if (typeof IntersectionObserver === 'function') {
+  thumbObserver = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue;
+      const img = en.target;
+      thumbObserver.unobserve(img);        // 抓过一次就不用再看了（翻页会重建元素）
+      if (img._course) enqueueThumb(img, img._course);
+    }
+  }, { rootMargin: '200px 0px' });        // 提前 200px 开始抓，滚到那儿就已经有了
+}
+function thumbImg(c) {
+  const img = document.createElement('img');
+  img.alt = '';
+  if (!showThumbs) return img;              // 关闭时返回空 img，占位照旧显示
+  img._course = c;
+  if (thumbObserver) thumbObserver.observe(img);
+  else enqueueThumb(img, c);                // 没有 IntersectionObserver 就全部排队（老浏览器兜底）
+  return img;
+}
+
+function coverNode(c, opt) {
+  opt = opt || {};
+  const wrap = el('div', 'cover');
+  const ph = el('div', 'ph');
+  wrap.appendChild(ph);
+  if (!opt.noThumb) wrap.appendChild(thumbImg(c));
+  const badge = el('span', 'badge-live' + (c.live ? '' : ' badge-cache'));
+  badge.textContent = c.live ? '直播中' : '可回看';
+  wrap.appendChild(badge);
+  const left = el('span', 'stat');
+  left.textContent = c.quantum_time || c.quantum || '';
+  wrap.appendChild(left);
+  const right = el('span', 'stat right');
+  right.textContent = c.cached && !c.live ? fmtRemain(c.expiry) : (c.student_type === '2' ? '研究生' : '本科');
+  wrap.appendChild(right);
+  return wrap;
+}
+// ---------------- 相关直播的相似度 ----------------
+// 不推荐同一个教室的直播（点进去还是同一路画面）。
+// 换成一版真算相似度的：标题按"字符二元组"当向量算余弦（中文没有词边界，二元组够用、
+// 零依赖），再叠加"同一位老师""同一学院"这两个本地确实有、且对选课有意义的信号。
+function bigramVec(text) {
+  const t = String(text || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  const m = new Map();
+  if (t.length === 1) { m.set(t, 1); return m; }
+  for (let i = 0; i + 1 < t.length; i++) {
+    const g = t.slice(i, i + 2);
+    m.set(g, (m.get(g) || 0) + 1);
+  }
+  return m;
+}
+function cosine(a, b) {
+  if (!a.size || !b.size) return 0;
+  let dot = 0, na = 0, nb = 0;
+  for (const v of a.values()) na += v * v;
+  for (const v of b.values()) nb += v * v;
+  const small = a.size <= b.size ? a : b;
+  const big = small === a ? b : a;
+  for (const [k, v] of small) { const w = big.get(k); if (w) dot += v * w; }
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+// 候选池：**只放正在直播的课**。
+// 相关直播只取正在直播的课，不含仅剩缓存窗口的课程。
+function relatedFor(c, n) {
+  const pool = new Map();
+  for (const x of store.courses) if (x.live) pool.set(keyOf(x.course_id, x.sub_id), x);
+  const selfKey = keyOf(c.course_id, c.sub_id);
+  const ref = bigramVec(c.title);
+  const scored = [];
+  for (const [k, x] of pool) {
+    if (k === selfKey) continue;
+    if (c.room && x.room && x.room === c.room) continue;       // ← 同教室直接排除
+    let s = 0;
+    if (c.teacher && x.teacher && x.teacher === c.teacher) s += 3.0;   // 同一位老师：最强信号
+    const sim = cosine(ref, bigramVec(x.title));
+    s += 3.0 * sim;                                                    // 课程名相似（含"XX 实验"这类同系列）
+    if (c.college && x.college && x.college === c.college) s += 0.3;   // 同学院：只当弱信号
+    // 门槛卡住"只有同学院分数"的无关课：不然随便一门在播课都能挤进推荐
+    if (s < 0.3) continue;
+    scored.push([s, x]);
+  }
+  scored.sort((a, b) => b[0] - a[0]);
+  return scored.slice(0, n).map(([, x]) => x);
+}
+
+function courseCard(c) {
+  const card = el('div', 'vcard');
+  card.appendChild(coverNode(c));
+  card.appendChild(el('div', 'ttl', c.title || '(无标题)'));
+  const meta = el('div', 'meta');
+  meta.appendChild(el('span', null, c.teacher || '未知教师'));
+  meta.appendChild(el('span', 'dot'));
+  meta.appendChild(el('span', null, c.room || '未知教室'));
+  card.appendChild(meta);
+  card.onclick = () => { location.hash = '#/c/' + encodeURIComponent(c.course_id) + '/' + encodeURIComponent(c.sub_id); };
+  return card;
+}
+function recoRow(c) {
+  const row = el('div', 'reco');
+  const rc = el('div', 'rc');
+  rc.appendChild(el('div', 'ph'));
+  rc.appendChild(thumbImg(c));
+  const b = el('span', 'stat');
+  b.style.cssText = 'position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:1px 5px;border-radius:3px';
+  b.textContent = c.live ? '直播中' : (c.date || '');
+  rc.appendChild(b);
+  row.appendChild(rc);
+  const col = el('div'); col.style.minWidth = '0';
+  col.appendChild(el('div', 'rt', c.title || ''));
+  const rm = el('div', 'rm');
+  rm.appendChild(el('span', null, c.teacher || ''));
+  rm.appendChild(el('span', null, c.room || ''));
+  col.appendChild(rm);
+  row.appendChild(col);
+  row.onclick = () => { location.hash = '#/c/' + encodeURIComponent(c.course_id) + '/' + encodeURIComponent(c.sub_id); };
+  return row;
+}
+
+// ============================================================
+//  数据
+// ============================================================
+async function loadStorage() {
+  try {
+    const s = await api('/api/storage');
+    store.storage = s;
+    $('#storageChip').textContent = '本地 ' + fmtBytes(s.bytes);
+  } catch {}
+}
+async function loadJobs() {
+  try { const r = await api('/api/jobs'); store.jobs = r.jobs || []; } catch {}
+}
+// 缓存地址是**本机**数据（服务端内存 + ~/.zju_stream_cache.json），
+// 所以单独加载：课程接口挂了（学校那边经常 502）也不该让「已缓存」面板变空。
+async function loadCache() {
+  try {
+    const c = await api('/api/cache');
+    store.cache = c.list || [];
+  } catch {}
+  return store.cache;
+}
+async function loadCourses(force) {
+  if (store.courses.length && !force) return store.courses;
+  const r = await api('/api/courses');
+  const list = r.courses || [];
+  // 从 /api/cache 合并缓存窗口的剩余时间。
+  await loadCache();
+  const exp = new Map(store.cache.map((x) => [keyOf(x.course_id, x.sub_id), x.expiry]));
+  for (const x of list) {
+    const k = keyOf(x.course_id, x.sub_id);
+    if (exp.has(k)) { x.cached = true; x.expiry = exp.get(k); }
+  }
+  store.courses = list;
+  store.byKey = new Map(list.map((x) => [keyOf(x.course_id, x.sub_id), x]));
+  return list;
+}
+// 详情页可能从"已缓存/星标/预约"点进来，那些来源没有完整课程对象 → 用兜底对象渲染
+function courseOf(courseId, subId) {
+  const k = keyOf(courseId, subId);
+  const hit = store.byKey.get(k);
+  if (hit) return hit;
+  const c = store.cache.find((x) => keyOf(x.course_id, x.sub_id) === k);
+  if (c) return { course_id: c.course_id, sub_id: c.sub_id, title: c.title, room: c.room, teacher: '', live: false, cached: true, expiry: c.expiry };
+  return { course_id: courseId, sub_id: subId, title: '课程 ' + courseId, room: '', teacher: '', live: false, cached: false };
+}
+
+// ============================================================
+//  筛选
+// ============================================================
+function filtered() {
+  const f = store.filter;
+  let out = store.courses.slice();
+  if (f.type !== 'all') out = out.filter((c) => c.student_type === f.type);
+  // “只看直播中”同时包含仍在有效期内的缓存地址。
+  if (f.liveOnly) out = out.filter((c) => c.live || c.cached);
+  if (f.q) {
+    const q = f.q.toLowerCase();
+    out = out.filter((c) => (c.title || '').toLowerCase().includes(q) || (c.teacher || '').toLowerCase().includes(q)
+      || (c.room || '').toLowerCase().includes(q));
+  }
+  if (f.teacher) out = out.filter((c) => c.teacher === f.teacher);
+  if (f.date) out = out.filter((c) => c.date === f.date);
+  if (f.quantum) out = out.filter((c) => c.quantum === f.quantum);
+  if (f.college) out = out.filter((c) => c.college === f.college);
+  if (f.room) out = out.filter((c) => c.room === f.room);
+  if (f.zone) out = out.filter((c) => (c.room || '').includes(f.zone));
+  // 正在直播的排前面（否则默认第一页全是已经下课、只剩缓存的课，看着像"都在回放"）
+  out.sort((a, b) => (b.live - a.live) || String(a.quantum_id || '').localeCompare(String(b.quantum_id || ''))
+    || String(a.room || '').localeCompare(String(b.room || '')));
+  return out;
+}
+const uniqSorted = (a) => Array.from(new Set(a.filter(Boolean))).sort();
+
+// ============================================================
+//  首页
+// ============================================================
+function pageHome() {
+  const v = host();
+  v.textContent = '';
+  const wrap = el('div', 'wrap');
+
+  // 分区入口
+  const zones = el('div', 'zones');
+  const zoneOf = (room) => { const z = ZONES.find((x) => (room || '').includes(x.key)); return z ? z.name : ''; };
+  const counts = {};
+  for (const c of store.courses) {
+    if (!(c.live || c.cached)) continue;
+    const n = zoneOf(c.room);
+    if (n) counts[n] = (counts[n] || 0) + 1;
+  }
+  const allZone = el('button', 'zone' + (store.filter.zone ? '' : ' on'));
+  const ai = el('span', 'zi', '全');
+  const at = el('div'); at.appendChild(el('div', 'zt', '全部')); at.appendChild(el('div', 'zc', '所有教学楼'));
+  allZone.appendChild(ai); allZone.appendChild(at);
+  allZone.onclick = () => { store.filter.zone = ''; store.filter.page = 1; route(); };
+  zones.appendChild(allZone);
+  for (const z of ZONES) {
+    const n = counts[z.name] || 0;
+    const b = el('button', 'zone' + (store.filter.zone === z.key ? ' on' : ''));
+    const i = el('span', 'zi', z.name.charAt(z.name.length - 1));
+    const t = el('div'); t.appendChild(el('div', 'zt', z.name)); t.appendChild(el('div', 'zc', n + ' 门在播'));
+    b.appendChild(i); b.appendChild(t);
+    b.onclick = () => { store.filter.zone = store.filter.zone === z.key ? '' : z.key; store.filter.page = 1; route(); };
+    zones.appendChild(b);
+  }
+  wrap.appendChild(zones);
+
+  // 筛选栏
+  const f = store.filter;
+  const bar = el('div', 'filters');
+  const seg = el('div', 'seg');
+  for (const [val, lab] of [['1', '本科'], ['2', '研究生'], ['all', '全部']]) {
+    const b = el('button', f.type === val ? 'on' : '', lab);
+    b.onclick = () => { store.filter.type = val; store.filter.page = 1; route(); };
+    seg.appendChild(b);
+  }
+  bar.appendChild(seg);
+  const liveBtn = iconBtn('eye', f.liveOnly ? '只看可看（含缓存窗口内）' : '显示全部课程（含未开课）',
+    () => { store.filter.liveOnly = !store.filter.liveOnly; store.filter.page = 1; route(); });
+  liveBtn.classList.toggle('on', f.liveOnly);
+  bar.appendChild(liveBtn);
+
+  const mkSel = (label, vals, cur, onChange) => {
+    const s = document.createElement('select');
+    s.appendChild(new Option(label, ''));
+    for (const x of vals) s.appendChild(new Option(x, x));
+    s.value = cur || '';
+    s.onchange = () => { onChange(s.value); store.filter.page = 1; route(); };
+    return s;
+  };
+  const pool = filtered();
+  bar.appendChild(mkSel('日期', uniqSorted(pool.map((c) => c.date)), f.date, (x) => { f.date = x; }));
+  bar.appendChild(mkSel('时段', uniqSorted(pool.map((c) => c.quantum)), f.quantum, (x) => { f.quantum = x; }));
+  bar.appendChild(mkSel('学院', uniqSorted(pool.map((c) => c.college)), f.college, (x) => { f.college = x; }));
+  bar.appendChild(mkSel('教室', uniqSorted(pool.map((c) => c.room)), f.room, (x) => { f.room = x; }));
+  const rs = iconBtn('reset', '重置筛选', () => { store.filter = Object.assign(store.filter, { type: '1', liveOnly: true, q: '', teacher: '', date: '', quantum: '', college: '', room: '', zone: '', page: 1 }); $('#navSearch').value = ''; route(); });
+  bar.appendChild(rs);
+  bar.appendChild(el('span', 'spacer'));
+  const rf = iconBtn('refresh', '刷新课程列表', async () => {
+    spinBtn(rf, true);
+    try { await loadCourses(true); toast('课程已刷新'); } catch (e) { toast('刷新失败：' + e.message); }
+    spinBtn(rf, false);
+    route();
+  });
+  bar.appendChild(rf);
+  const pc = iconBtn('download', '预缓存地址（提前取好，临场不用等）', async () => {
+    spinBtn(pc, true);
+    try { const r = await postJson('/api/precache', {}); toast('预缓存完成：重签 ' + r.refreshed + '/' + r.total); } catch (e) { toast('预缓存失败：' + e.message); }
+    spinBtn(pc, false);
+  });
+  bar.appendChild(pc);
+  const fc = iconBtn('zap', '强制刷新地址（全部重签，窗口重置成 ~7 小时）', async () => {
+    spinBtn(fc, true);
+    try { const r = await postJson('/api/precache', { force: true }); toast('已重签 ' + r.refreshed + ' 条，窗口 ~' + (r.windowMaxMin / 60).toFixed(1) + 'h'); } catch (e) { toast('失败：' + e.message); }
+    spinBtn(fc, false);
+  });
+  bar.appendChild(fc);
+  wrap.appendChild(bar);
+
+  // 网格
+  const list = pool;
+  const total = list.length;
+  const pages = Math.max(1, Math.ceil(total / store.PAGE));
+  if (f.page > pages) f.page = pages;
+  const slice = list.slice((f.page - 1) * store.PAGE, f.page * store.PAGE);
+
+  const head = el('div', 'page-head');
+  head.appendChild(el('h2', null, f.liveOnly ? '正在直播 / 可看' : '全部课程'));
+  head.appendChild(el('span', 'sub', total + ' 门 · 第 ' + f.page + '/' + pages + ' 页'));
+  wrap.appendChild(head);
+
+  if (!slice.length) {
+    wrap.appendChild(el('div', 'empty', '没有符合条件的课程'));
+  } else {
+    const grid = el('div', 'grid');
+    for (const c of slice) grid.appendChild(courseCard(c));
+    wrap.appendChild(grid);
+    if (pages > 1) {
+      const pager = el('div', 'pager');
+      const prev = el('button');
+      prev.setAttribute('data-tip', '上一页'); prev.setAttribute('aria-label', '上一页');
+      prev.appendChild(icon('left', 'sm'));
+      prev.disabled = f.page <= 1;
+      prev.onclick = () => { f.page--; route(); };
+      pager.appendChild(prev);
+      const nums = new Set([1, pages, f.page, f.page - 1, f.page + 1, f.page - 2, f.page + 2]);
+      const shown = Array.from(nums).filter((n) => n >= 1 && n <= pages).sort((a, b) => a - b);
+      let last = 0;
+      for (const n of shown) {
+        if (last && n - last > 1) pager.appendChild(el('span', 'hint', '…'));
+        const b = el('button', n === f.page ? 'on' : '', String(n));
+        b.onclick = () => { f.page = n; route(); };
+        pager.appendChild(b);
+        last = n;
+      }
+      const next = el('button');
+      next.setAttribute('data-tip', '下一页'); next.setAttribute('aria-label', '下一页');
+      next.appendChild(icon('right', 'sm'));
+      next.disabled = f.page >= pages;
+      next.onclick = () => { f.page++; route(); };
+      pager.appendChild(next);
+      wrap.appendChild(pager);
+    }
+  }
+  v.appendChild(wrap);
+}
+
+// ============================================================
+//  已缓存 / 预约 / 星标 / 任务 列表页
+// ============================================================
+// 页面渲染目标：正常是 #view；抽屉打开时是抽屉内容区。
+// 六个页面函数体一行都不用改 —— 它们都通过 host() 取容器。
+let PAGE_HOST = null;
+function host() { return PAGE_HOST || $('#view'); }
+
+function listPage(title, sub, rows, emptyText) {
+  const v = host(); v.textContent = '';
+  const wrap = el('div', 'wrap');
+  const h = el('div', 'page-head'); h.appendChild(el('h2', null, title)); h.appendChild(el('span', 'sub', sub || '')); wrap.appendChild(h);
+  const card = el('div', 'card');
+  if (!rows.length) card.appendChild(el('div', 'empty', emptyText));
+  else { const box = el('div', 'rows'); for (const r of rows) box.appendChild(r); card.appendChild(box); }
+  wrap.appendChild(card); v.appendChild(wrap);
+}
+// 已缓存列表：和主页一套查找能力（关键词 / 学院 / 教室 / 只在播 / 排序 / 分页）。
+// 缓存条目本身只有 课程名+教室+剩余，学院/日期这些要从已加载的课程表里补给它。
+const cacheFilter = { q: '', college: '', room: '', liveOnly: false, sort: 'remain', page: 1 };
+const CACHE_PAGE = 30;
+
+function cacheAll() {
+  return store.cache.map((x) => {
+    const full = store.byKey.get(keyOf(x.course_id, x.sub_id)) || {};
+    return Object.assign({}, x, {
+      teacher: full.teacher || '', college: full.college || '', date: full.date || '',
+      quantum: full.quantum || '', quantum_time: full.quantum_time || '',
+      student_type: full.student_type || '', live: !!full.live,
+    });
+  });
+}
+function cacheFiltered() {
+  const f = cacheFilter;
+  let list = cacheAll();
+  if (f.liveOnly) list = list.filter((x) => x.live);
+  if (f.college) list = list.filter((x) => x.college === f.college);
+  if (f.room) list = list.filter((x) => x.room === f.room);
+  if (f.q) {
+    const q = f.q.toLowerCase();
+    list = list.filter((x) => (x.title || '').toLowerCase().includes(q)
+      || (x.room || '').toLowerCase().includes(q) || (x.teacher || '').toLowerCase().includes(q));
+  }
+  const by = {
+    remain: (a, b) => (b.expiry || 0) - (a.expiry || 0),
+    room: (a, b) => String(a.room || '').localeCompare(String(b.room || '')),
+    title: (a, b) => String(a.title || '').localeCompare(String(b.title || '')),
+  }[f.sort];
+  if (by) list.sort(by);
+  return list;
+}
+function cacheRow(c) {
+  const row = el('div', 'row');
+  row.appendChild((() => {
+    const rc = el('div');
+    rc.style.cssText = 'width:96px;height:54px;border-radius:6px;overflow:hidden;flex:none;position:relative';
+    rc.appendChild(el('div', 'ph'));
+    return rc;
+  })());
+  const g = el('div', 'grow');
+  g.appendChild(el('div', 'l1', c.title || ''));
+  g.appendChild(el('div', 'l2', [c.live ? '直播中' : '可回看', c.teacher, c.room,
+    c.quantum_time || c.quantum, fmtRemain(c.expiry), c.count + ' 个机位'].filter(Boolean).join(' · ')));
+  row.appendChild(g);
+  const b = iconBtn('open', '打开这门课', () => { location.hash = '#/c/' + encodeURIComponent(c.course_id) + '/' + encodeURIComponent(c.sub_id); }, 'sm');
+  row.appendChild(b);
+  return row;
+}
+function pageCache() {
+  const v = host(); v.textContent = '';
+  const wrap = el('div', 'wrap');
+  const head = el('div', 'page-head');
+  head.appendChild(el('h2', null, '已缓存地址'));
+  const sub = el('span', 'sub');
+  head.appendChild(sub);
+  wrap.appendChild(head);
+
+  const bar = el('div', 'filters');
+  const q = document.createElement('input');
+  q.type = 'text'; q.placeholder = '搜课程 / 教室 / 教师'; q.autocomplete = 'off';
+  q.value = cacheFilter.q;
+  q.style.flex = '1 1 160px'; q.style.minWidth = '140px';
+  // 只重画列表，不重画搜索框本身 —— 否则每打一个字都会失焦
+  q.oninput = () => { cacheFilter.q = q.value.trim(); cacheFilter.page = 1; paint(); };
+  bar.appendChild(q);
+
+  const mkSel = (label, vals, cur, onPick) => {
+    const sel = document.createElement('select');
+    sel.appendChild(new Option(label, ''));
+    for (const x of vals) sel.appendChild(new Option(x, x));
+    sel.value = cur || '';
+    sel.onchange = () => { onPick(sel.value); cacheFilter.page = 1; paint(); };
+    return sel;
+  };
+  const full = cacheAll();
+  bar.appendChild(mkSel('学院', uniqSorted(full.map((x) => x.college)), cacheFilter.college, (x) => { cacheFilter.college = x; }));
+  bar.appendChild(mkSel('教室', uniqSorted(full.map((x) => x.room)), cacheFilter.room, (x) => { cacheFilter.room = x; }));
+  const liveBtn = el('button', 'key', cacheFilter.liveOnly ? '只看在播' : '含已下课');
+  liveBtn.onclick = () => { cacheFilter.liveOnly = !cacheFilter.liveOnly; cacheFilter.page = 1; openDrawer('cache'); };
+  bar.appendChild(liveBtn);
+  bar.appendChild(mkSel('排序', [], '', () => {}));
+  const sortSel = bar.lastChild;
+  sortSel.innerHTML = '';
+  for (const [val, lab] of [['remain', '剩余时间'], ['room', '教室'], ['title', '课程名']]) sortSel.appendChild(new Option(lab, val));
+  sortSel.value = cacheFilter.sort;
+  sortSel.onchange = () => { cacheFilter.sort = sortSel.value; cacheFilter.page = 1; paint(); };
+  const rst = el('button', 'key', '重置');
+  rst.onclick = () => { Object.assign(cacheFilter, { q: '', college: '', room: '', liveOnly: false, sort: 'remain', page: 1 }); openDrawer('cache'); };
+  bar.appendChild(rst);
+  wrap.appendChild(bar);
+
+  const box = el('div', 'card');
+  wrap.appendChild(box);
+  const pager = el('div', 'pager');
+  wrap.appendChild(pager);
+
+  function paint() {
+    const list = cacheFiltered();
+    sub.textContent = list.length + ' / ' + store.cache.length + ' 条';
+    const pages = Math.max(1, Math.ceil(list.length / CACHE_PAGE));
+    if (cacheFilter.page > pages) cacheFilter.page = pages;
+    const slice = list.slice((cacheFilter.page - 1) * CACHE_PAGE, cacheFilter.page * CACHE_PAGE);
+    box.textContent = '';
+    if (!list.length) { box.appendChild(el('div', 'empty', '没有匹配的缓存地址')); }
+    else {
+      const rows = el('div', 'rows');
+      for (const c of slice) rows.appendChild(cacheRow(c));
+      box.appendChild(rows);
+    }
+    pager.textContent = '';
+    if (pages > 1) {
+      const prev = el('button');
+      prev.setAttribute('data-tip', '上一页'); prev.setAttribute('aria-label', '上一页');
+      prev.appendChild(icon('left', 'sm'));
+      prev.disabled = cacheFilter.page <= 1;
+      prev.onclick = () => { cacheFilter.page--; paint(); };
+      pager.appendChild(prev);
+      const nums = Array.from(new Set([1, pages, cacheFilter.page, cacheFilter.page - 1, cacheFilter.page + 1]))
+        .filter((n) => n >= 1 && n <= pages).sort((a, b) => a - b);
+      let last = 0;
+      for (const n of nums) {
+        if (last && n - last > 1) pager.appendChild(el('span', 'hint', '…'));
+        const b = el('button', n === cacheFilter.page ? 'on' : '', String(n));
+        b.onclick = () => { cacheFilter.page = n; paint(); };
+        pager.appendChild(b);
+        last = n;
+      }
+      const next = el('button');
+      next.setAttribute('data-tip', '下一页'); next.setAttribute('aria-label', '下一页');
+      next.appendChild(icon('right', 'sm'));
+      next.disabled = cacheFilter.page >= pages;
+      next.onclick = () => { cacheFilter.page++; paint(); };
+      pager.appendChild(next);
+    }
+  }
+  v.appendChild(wrap);
+  paint();
+}
+function pageMarks() {
+  const rows = store.marks.map((m) => {
+    const row = el('div', 'row');
+    const g = el('div', 'grow');
+    g.appendChild(el('div', 'l1', (m.course_title || '') + ' · ' + (m.sub_title || '')));
+    const st = { pending: ['warn', '待录'], recording: ['live', '录制中'], done: ['ok', '完成'], missed: ['err', '错过'], cancelled: ['mute', '已取消'] }[m.status] || ['mute', m.status];
+    g.appendChild(el('div', 'l2', (m.note || '') + '  ' + new Date((m.begin || 0) * 1000).toLocaleString('zh-CN')));
+    row.appendChild(g);
+    row.appendChild(el('span', 'st ' + st[0], st[1]));
+    const b = iconBtn('trash', '删除这条预约', async () => {
+      if (!confirm('删除这条预约？')) return;
+      try { await postJson('/api/marks/delete', { id: m.id }); toast('已删除'); store.marks = (await api('/api/marks')).marks; route(); } catch (e) { toast(e.message); }
+    }, 'sm');
+    row.appendChild(b);
+    return row;
+  });
+  listPage('预约录制', store.marks.length + ' 条', rows, '没有预约');
+}
+function pageStars() {
+  const rows = store.stars.map((s) => {
+    const row = el('div', 'row');
+    const g = el('div', 'grow');
+    const kind = { course: '课程', room: '教室', teacher: '教师' }[s.type] || s.type;
+    g.appendChild(el('div', 'l1', kind + ' · ' + s.value));
+    const live = (s.matches || []).filter((m) => m.live).length;
+    g.appendChild(el('div', 'l2', live ? ('现在有 ' + live + ' 门在播') : ((s.matches || []).length ? '有 ' + s.matches.length + ' 门可看（缓存窗口内）' : '当前没有在播')));
+    row.appendChild(g);
+    if (live) row.appendChild(el('span', 'st live', '在播'));
+    const b = iconBtn('trash', '取消星标', async () => { try { await postJson('/api/stars/delete', { id: s.id }); store.stars = (await api('/api/stars')).stars; route(); } catch (e) { toast(e.message); } }, 'sm');
+    row.appendChild(b);
+    if (live) {
+      const m = s.matches.find((x) => x.live);
+      const go = iconBtn('open', '去看正在播的这节', () => { location.hash = '#/c/' + encodeURIComponent(m.course_id) + '/' + encodeURIComponent(m.sub_id); });
+      row.appendChild(go);
+    }
+    return row;
+  });
+  listPage('星标', store.stars.length + ' 条', rows, '还没有星标');
+}
+function pageJobs() {
+  const rows = store.jobs.map((j) => {
+    const row = el('div', 'row');
+    const g = el('div', 'grow');
+    g.appendChild(el('div', 'l1', j.course + ' · ' + j.label));
+    const st = { recording: ['live', '录制中'], retrying: ['warn', '重试中'], stopped: ['mute', '已停止'], error: ['err', '出错'] }[j.status] || ['mute', j.status];
+    g.appendChild(el('div', 'l2', '已录 ' + fmtDur(j.durationSec) + (j.error ? ' · ' + j.error : '') + (j.attempts > 1 ? ' · 第 ' + j.attempts + ' 次开流' : '')));
+    row.appendChild(g);
+    row.appendChild(el('span', 'st ' + st[0], st[1]));
+    if (j.status === 'recording' || j.status === 'retrying') {
+      const b = iconBtn('stop', '停止（等 ffmpeg 写完收尾）', async () => { try { await postJson('/api/stop', { id: j.id }); toast('已请求停止（等 ffmpeg 写完收尾）'); await loadJobs(); route(); } catch (e) { toast(e.message); } }, 'sm');
+      row.appendChild(b);
+    }
+    return row;
+  });
+  listPage('录制任务', store.jobs.length + ' 个', rows, '没有录制任务');
+}
+
+// ============================================================
+//  详情页
+// ============================================================
+// ============================================================
+//  详情页：区块表
+// ============================================================
+// 详情页版式由下列区块表驱动。
+// zone：'head' = 顶部标题带（横跨整页，放标题/元信息），'main' = 下面两栏的左栏，'side' = 右栏。
+// 标题带的作用：让右栏第一块与播放器顶部对齐（两栏同一起点）。
+// 标题/元信息如果在左栏里占着位置，右栏从 0 开始就必然比视频高一截；把它们放进横跨整页的
+// 标题带使主栏播放器与侧栏顶部对齐。
+// 「返回」与隐藏的「属性标签」已移除，连带"返回单独一行 / 右半固定 350px"的对齐关系一起删除；
+// 现在标题带就是一行 title + meta。
+const BLOCK_DEFS = [
+  { id: 'title', name: '标题', col: 'head' },
+  { id: 'meta', name: '元信息', col: 'head' },
+  { id: 'player', name: '播放器', col: 'main' },
+  { id: 'pills', name: '机位切换', col: 'main' },
+  { id: 'ops', name: '操作按钮', col: 'main' },
+  { id: 'info', name: '课程信息', col: 'main', hidden: true },   // 与标题/元信息完全重复
+  { id: 'rec', name: '实时进度（录制）', col: 'main' },
+  // 右栏顺序：关注/预约 → 实时字幕 → 相关直播
+  { id: 'teacher', name: '关注/预约', col: 'side' },
+  { id: 'asr', name: '实时字幕', col: 'side' },
+  { id: 'reco', name: '相关直播', col: 'side' },
+];
+// 区块字号。
+const SIZE_PX = {
+  title: 20, meta: 13, ops: 13.5, pills: 13, info: 14, asr: 14, reco: 14, teacher: 16,
+};
+let detailState = { streams: [], cur: null, course: null, video: null, nodes: {}, ctx: null };
+
+const COL_PX = { maxWidth: 1504, mainWidth: 1123, sideWidth: 350, gap: 30 };
+const itemsIn = (zone) => BLOCK_DEFS.filter((b) => b.col === zone && !b.hidden).map((b) => b.id);
+// 区块的字号/间距：整页一个默认值，不再按区块可调
+function applyBlockDefaults(node, id) {
+  if (SIZE_PX[id]) node.style.setProperty('--blk-fs', SIZE_PX[id] + 'px');
+  node.style.marginBottom = '12px';
+}
+// 详情页的列宽/栏距。**不再覆盖主色** —— 编辑器那会儿会把 --blue 写成定值，
+// 结果在暗色主题下也强行用亮蓝（暗色该用更亮的 #3FB8E8），这个副作用跟着编辑器一起删掉了。
+function applyGlobal(root, layoutEl) {
+  if (root) root.style.maxWidth = COL_PX.maxWidth + 'px';
+  if (layoutEl) {
+    // 传变量而不是写死列宽，窄屏时由媒体查询接管（见 .detail 的注释）
+    layoutEl.style.setProperty('--main-w', COL_PX.mainWidth + 'px');
+    layoutEl.style.setProperty('--side-w', COL_PX.sideWidth + 'px');
+    layoutEl.style.setProperty('--gap', COL_PX.gap + 'px');
+  }
+}
+
+// ---- 各区块的内容（只建一次，之后靠"移动节点"重排，播放器不会被重建/中断）----
+function buildBlocks(c) {
+  const nodes = {};
+  const ctx = { c };
+
+  nodes.title = el('h1', 'd-title', c.title || '(无标题)');
+
+  nodes.meta = (() => {
+    const m = el('div', 'd-meta');
+    const st = c.live ? ['live', '直播中'] : c.cached ? ['', '可回看（缓存窗口内）'] : ['', (c.status_label || '未开播')];
+    m.appendChild(el('span', 'tag' + (st[0] ? ' live' : ''), st[1]));
+    for (const t of [c.teacher, c.college, c.room, c.date, c.quantum_time || c.quantum]) if (t) m.appendChild(el('span', null, t));
+    if (c.cached && c.expiry) m.appendChild(el('span', null, fmtRemain(c.expiry)));
+    return m;
+  })();
+
+  const pbox = el('div', 'player-box');
+  const video = document.createElement('video');
+  video.controls = true; video.playsInline = true; video.autoplay = true;
+  pbox.appendChild(video);
+  detailState.video = video;
+  ctx.pbox = pbox; ctx.video = video;
+  nodes.player = pbox;
+
+  nodes.pills = (() => {
+    const u = el('div', 'under-player');
+    u.appendChild(el('span', 'lab', '机位：'));
+    ctx.under = u;
+    return u;
+  })();
+
+  nodes.ops = (() => { const o = el('div', 'ops'); ctx.ops = o; return o; })();
+
+  // 实时进度（录制）：点录制之后不用离开直播页就能看进度、能停。
+  // 主菜单的「录制任务」页仍然保留，但不再是你查看进度的唯一入口。
+  nodes.rec = (() => {
+    const card = el('div', 'card card-pad rec-card');
+    const h = el('div', 'rec-h');
+    h.appendChild(el('h3', null, '实时进度'));
+    const badge = el('span', 'rec-badge');
+    h.appendChild(badge);
+    card.appendChild(h);
+    const box = el('div', 'rec-list');
+    card.appendChild(box);
+    ctx.recBox = box; ctx.recBadge = badge;
+    return card;
+  })();
+
+  nodes.info = (() => {
+    const card = el('div', 'card card-pad');
+    const desc = el('div', 'desc');
+    desc.textContent = [c.title, c.teacher ? '教师：' + c.teacher : '', c.room ? '教室：' + c.room : '',
+      c.date ? '日期：' + c.date + ' ' + (c.quantum || '') : ''].filter(Boolean).join('\n');
+    card.appendChild(desc);
+    return card;
+  })();
+
+  // 字幕面板：**一直占位**（未开启时也占一块位置）；
+  // 面板内部「正在听（最新）→ 已定稿（新的在最上面）」，往回看往下滑。
+  nodes.asr = (() => {
+    const asr = el('section', 'asr idle');
+    const ah = el('div', 'asr-head');
+    const dot = el('span', 'asr-dot');
+    const stt = el('span', 'asr-state', '未开启');
+    ah.appendChild(dot); ah.appendChild(stt); ah.appendChild(el('span', 'spacer'));
+    // 头部使用图标键；导出格式在二级浮层中选择。
+    const bExport = iconBtn('download', '导出字幕', (ev) => {
+      ev.stopPropagation();
+      showPop(bExport, [
+        { icon: 'download', label: '导出 TXT', fn: () => Asr.exportAs('txt') },
+        { icon: 'download', label: '导出 SRT', fn: () => Asr.exportAs('srt') },
+      ]);
+    });
+    const bCopy = iconBtn('copy', '复制全文', () => Asr.copyText());
+    const bStop = iconBtn('stop', '停止识别', () => Asr.stop());
+    const bStart = iconKey('mic', '开始识别', () => Asr.start(detailState.cur), 'primary');
+    for (const b of [bExport, bCopy, bStop, bStart]) ah.appendChild(b);
+    asr.appendChild(ah);
+    const ameta = el('div', 'asr-meta'); asr.appendChild(ameta);
+    const alive = el('div', 'asr-live'); asr.appendChild(alive);
+    const abody = el('div', 'asr-body'); asr.appendChild(abody);
+    const ahint = el('div', 'asr-hint'); asr.appendChild(ahint);
+    Asr.mount({ panel: asr, dot, state: stt, meta: ameta, live: alive, body: abody, hint: ahint,
+                startBtn: bStart, stopBtn: bStop, expoBtns: [bExport, bCopy] });
+    ctx.asrPanel = asr;
+    return asr;
+  })();
+
+  // 右上不显示与标题重复的教师名牌，改为把「关注这个老师」并进来，
+  // 关注类按钮不放在视频下方的操作条里。只留老师名 + 两个键，不重复学院/教室。
+  nodes.teacher = (() => {
+    const card = el('div', 'side-card');
+    const head = el('div', 'side-head');
+    head.dataset.teacher = c.teacher || '';
+    head.appendChild(el('span', 'tn', c.teacher || '未知教师'));
+    const badge = chalaoBadge(c.teacher);      // 查老师评分（可在头像菜单里关掉）
+    if (badge) head.appendChild(badge);
+    card.appendChild(head);
+    const sop = el('div', 'side-ops');
+    const bFollow = iconKey('star', '关注老师', async () => {
+      if (!c.teacher) return toast('这门课没有教师信息');
+      try {
+        await postJson('/api/stars', { type: 'teacher', value: c.teacher, label: c.teacher });
+        toast('已关注（星标）' + c.teacher);
+        store.stars = (await api('/api/stars')).stars;
+      } catch (e) { toast(e.message); }
+    }, 'primary');
+    const bMk = iconKey('clock', '预约这场课', () => openMarkModal(c));
+    sop.appendChild(bFollow); sop.appendChild(bMk);
+    card.appendChild(sop);
+    return card;
+  })();
+
+  nodes.reco = (() => {
+    const card = el('div', 'side-card');
+    const rh = el('div', 'card-h'); rh.appendChild(el('h3', null, '相关直播')); card.appendChild(rh);
+    const box = el('div'); box.style.padding = '4px 16px 12px'; card.appendChild(box);
+    const related = relatedFor(c, 8);
+    if (!related.length) box.appendChild(el('div', 'hint', '暂无相关直播'));
+    else for (const x of related) box.appendChild(recoRow(x));
+    return card;
+  })();
+
+  return { nodes, ctx };
+}
+
+function blkNode(id, zone) {
+  const node = detailState.nodes[id];
+  if (!node) return null;
+  const wrap = el('div', 'blk blk-' + id);
+  wrap.dataset.id = id;
+  wrap.dataset.zone = zone;
+  wrap.appendChild(node);
+  applyBlockDefaults(node, id);
+  return wrap;
+}
+function renderCols(mainEl, sideEl) {
+  const band = detailState.bandEl;
+  const bandL = detailState.bandLeftEl;
+  for (const c of [mainEl, sideEl, bandL]) if (c) { c.textContent = ''; }
+  if (band) band.style.display = '';
+  const put = (container, ids, zone) => {
+    for (const id of ids) {
+      const w = blkNode(id, zone);
+      if (w) container.appendChild(w);
+    }
+  };
+  // 标题带：标题 + 元信息整行铺开（右半的「属性标签」已移除，
+  // 连同它那套"右半固定 350px"的对齐关系一起删了 —— 所以 band-right 不再存在）
+  put(bandL, itemsIn('head'), 'head');
+  if (band && !bandL.children.length) band.style.display = 'none';
+  put(mainEl, itemsIn('main'), 'main');
+  put(sideEl, itemsIn('side'), 'side');
+}
+
+function pageDetail(courseId, subId) {
+  const c = courseOf(courseId, subId);
+  detailState.course = c;
+  const v = host(); v.textContent = '';
+
+  const wrap = el('div', 'wrap');
+  applyGlobal(wrap, null);
+
+  const layout = el('div', 'detail');
+  const band = el('div', 'band');
+  const bandL = el('div', 'band-left');
+  band.appendChild(bandL);
+  const main = el('div', 'col-main'); main.style.minWidth = '0';
+  const side = el('div', 'col-side');
+  layout.appendChild(band); layout.appendChild(main); layout.appendChild(side);
+  applyGlobal(wrap, layout);
+  wrap.appendChild(layout);
+  v.appendChild(wrap);
+
+  const built = buildBlocks(c);
+  detailState.nodes = built.nodes;
+  detailState.ctx = built.ctx;
+  detailState.mainEl = main; detailState.sideEl = side;
+  detailState.bandEl = band; detailState.bandLeftEl = bandL;
+
+  renderCols(main, side);
+
+  // 媒体钩子（提示放进播放器内部，不撑破布局）
+  const pbox = built.ctx.pbox;
+  Media.config({
+    getIdentity: () => ({ course: c.title, room: c.room }),
+    onMessage: (vid, text) => {
+      let m = pbox.querySelector('.player-msg');
+      if (!m) { m = el('div', 'player-msg'); pbox.appendChild(m); }
+      m.textContent = text || '';
+      m.style.display = text ? '' : 'none';
+    },
+    onStream: (s) => {
+      detailState.cur = s || null;
+      if (!s) return;
+      Array.from(built.ctx.under.querySelectorAll('.pill')).forEach((b) => b.classList.toggle('on', b.dataset.k === s.key));
+      buildOps();
+    },
+  });
+
+  buildOps();
+  renderRec();
+  resolveAndPlay(c);
+}
+
+// 录制进度：只要能拿到 job 列表就一直能画。时长用 startedAt 现算，所以秒数是自己在走的，
+// 不必等 /api/jobs 的轮询（那个 5 秒一次，只负责把"有哪些任务"刷新）。
+function renderRec() {
+  const ctx = detailState.ctx;
+  if (!ctx || !ctx.recBox) return;
+  const box = ctx.recBox, badge = ctx.recBadge;
+  const jobs = (store.jobs || []).slice().sort((a, b) => {
+    const rank = (j) => (j.status === 'recording' || j.status === 'retrying') ? 0 : 1;
+    return rank(a) - rank(b) || (b.startedAt || 0) - (a.startedAt || 0);
+  });
+  const active = jobs.filter((j) => j.status === 'recording' || j.status === 'retrying');
+  if (badge) {
+    badge.textContent = active.length ? ('录制中 ' + active.length) : '';
+    badge.className = 'rec-badge' + (active.length ? ' on' : '');
+  }
+  box.textContent = '';
+  if (!jobs.length) {
+    box.appendChild(el('div', 'hint', '当前没有录制任务'));
+    return;
+  }
+  for (const j of jobs) {
+    const row = el('div', 'rec-row');
+    const g = el('div', 'grow');
+    g.appendChild(el('div', 'l1', (j.course || '') + ' · ' + (j.label || '')));
+    const st = { recording: ['live', '录制中'], retrying: ['warn', '重试中'], stopped: ['mute', '已停止'], error: ['err', '出错'] }[j.status] || ['mute', j.status];
+    const dur = fmtDur(Math.floor(((j.endedAt || Date.now()) - (j.startedAt || Date.now())) / 1000));
+    const extra = j.error ? ' · ' + j.error : (j.attempts > 1 ? ' · 第 ' + j.attempts + ' 次开流' : '');
+    g.appendChild(el('div', 'l2', '已录 ' + dur + extra));
+    row.appendChild(g);
+    row.appendChild(el('span', 'st ' + st[0], st[1]));
+    if (j.status === 'recording' || j.status === 'retrying') {
+      const b = el('button', 'key', '停止');
+      b.onclick = async () => {
+        try { await postJson('/api/stop', { id: j.id }); toast('已请求停止（等 ffmpeg 写完收尾）'); await loadJobs(); renderRec(); }
+        catch (e) { toast(e.message); }
+      };
+      row.appendChild(b);
+    }
+    box.appendChild(row);
+  }
+}
+
+function buildOps() {
+  const ctx = detailState.ctx;
+  if (!ctx || !ctx.ops) return;
+  const c = detailState.course, s = detailState.cur;
+  const ops = ctx.ops;
+  ops.textContent = '';
+  // 操作条：等宽的"大键"，**只放图标**，说明走悬停提示
+  const mk = (name, label, fn) => {
+    const b = el('button', 'key wide');
+    b.setAttribute('data-tip', label);
+    b.setAttribute('aria-label', label);
+    b.appendChild(icon(name, 'lg'));
+    b.onclick = fn;
+    ops.appendChild(b);
+    return b;
+  };
+  mk('record', '录制主画面（只录教师机位）', async () => {
+    // **必须取主画面机位**，不取"当前正在看的机位"：服务端只允许录制主画面，
+    // 否则返回 400「当前只支持录制主画面」。
+    const t = (detailState.streams || []).find((x) => x.key === 'teacher');
+    if (!t) return toast('这门课没有主画面机位，无法录制');
+    try {
+      await postJson('/api/record', { url: t.recordUrl || t.url, recordUrl: t.recordUrl || t.url,
+        label: t.label, key: 'teacher', course: c.title });
+      toast('开始录制主画面');
+      await loadJobs(); renderRec(); renderNav(currentNavId());
+    } catch (e) { toast('录制失败：' + e.message); }
+  });
+  mk('pulse', '播放诊断', () => { detailState.course = c; location.hash = '#/diag'; });
+  mk('link', '复制这门课的链接', () => {
+    const url = location.origin + '/#/c/' + c.course_id + '/' + c.sub_id;
+    if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => toast('已复制'), () => toast(url));
+    else toast(url);
+  });
+  // 「当前机位」提示挪到机位那一行：操作条要保持等宽"键"形，塞 spacer 会把布局挤歪
+  const underEl = detailState.ctx && detailState.ctx.under;
+  if (underEl) {
+    const old = underEl.querySelector('.cur-pill-hint');
+    if (old) old.remove();
+    if (s) underEl.appendChild(el('span', 'hint cur-pill-hint', '当前：' + (s.label || s.key)));
+  }
+}
+
+async function resolveAndPlay(c) {
+  const ctx = detailState.ctx;
+  const underEl = ctx.under, video = ctx.video;
+  underEl.textContent = '';
+  underEl.appendChild(el('span', 'lab', '机位：'));
+  underEl.appendChild(el('span', 'hint', '解析地址中…'));
+  let r;
+  try {
+    r = await api('/api/streams?course_id=' + encodeURIComponent(c.course_id) + '&sub_id=' + encodeURIComponent(c.sub_id)
+      + '&title=' + encodeURIComponent(c.title || '') + '&room=' + encodeURIComponent(c.room || ''));
+  } catch (e) {
+    underEl.textContent = ''; underEl.appendChild(el('span', 'lab', '机位：'));
+    underEl.appendChild(el('span', 'hint', '解析失败：' + e.message));
+    return;
+  }
+  detailState.streams = r.streams || [];
+  underEl.textContent = ''; underEl.appendChild(el('span', 'lab', '机位：'));
+  if (!detailState.streams.length) {
+    underEl.appendChild(el('span', 'hint', (r.dropped && r.dropped.length)
+      ? '该课只提供 ' + Array.from(new Set(r.dropped.map((d) => d.type))).join('/') + ' 地址，浏览器无法直接播放'
+      : (c.live ? '未解析到直播流' : '这节课不在直播、缓存也过期了')));
+    return;
+  }
+  for (const s of detailState.streams) {
+    const b = el('button', 'chip' + (s.key === 'teacher' ? ' on' : ''), Media.streamName(s));
+    b.dataset.k = s.key;
+    b.onclick = () => { detailState.cur = s; Media.playStream(video, s); };
+    underEl.appendChild(b);
+  }
+  if (r.source === 'cached') underEl.appendChild(el('span', 'hint', '缓存地址 · ' + fmtRemain(r.expiry)));
+  const first = detailState.streams.find((s) => s.key === 'teacher') || detailState.streams[0];
+  detailState.cur = first;
+  Media.playStream(video, first);
+}
+
+// ============================================================
+//  预约弹窗（挑未来场次）
+// ============================================================
+async function openMarkModal(c) {
+  const body = $('#modalBody'); body.textContent = '';
+  const mh = el('div', 'mh');
+  mh.appendChild(el('h3', null, '预约录制'));
+  const x = iconBtn('x', '关闭', closeModal); mh.appendChild(x);
+  body.appendChild(mh);
+  body.appendChild(el('div', 'msub', c.title + (c.room ? ' · ' + c.room : '')));
+  const box = el('div', 'sess-list'); box.appendChild(el('div', 'empty', '正在拉取该课的场次…'));
+  body.appendChild(box);
+  const ma = el('div', 'ma');
+  const save = el('button', 'key primary', '保存预约');
+  save.disabled = true; save.onclick = async () => {
+    const picked = Array.from(box.querySelectorAll('input:checked')).map((i) => JSON.parse(i.value));
+    if (!picked.length) return toast('先勾选场次');
+    try { const r = await postJson('/api/marks', { marks: picked }); toast('已预约 ' + r.added + ' 场'); closeModal(); store.marks = (await api('/api/marks')).marks; renderNav('marks'); }
+    catch (e) { toast(e.message); }
+  };
+  ma.appendChild(save); body.appendChild(ma);
+  $('#modal').classList.add('on');
+  try {
+    const r = await api('/api/sessions?course_id=' + encodeURIComponent(c.course_id));
+    box.textContent = '';
+    const list = r.sessions || [];
+    if (!list.length) { box.appendChild(el('div', 'empty', '这门课没有未来未上的场次')); return; }
+    for (const s of list) {
+      const row = el('label', 'sess');
+      const cb = document.createElement('input'); cb.type = 'checkbox';
+      cb.value = JSON.stringify({ course_id: c.course_id, sub_id: s.sub_id, course_title: s.title || c.title, sub_title: s.sub_title, begin: s.begin, over: s.over });
+      row.appendChild(cb);
+      const d = el('div', 'd');
+      d.appendChild(el('div', null, s.sub_title || ('sub_id ' + s.sub_id)));
+      d.appendChild(el('div', 'hint', new Date((s.begin || 0) * 1000).toLocaleString('zh-CN') + ' ~ ' + new Date((s.over || 0) * 1000).toLocaleTimeString('zh-CN')));
+      row.appendChild(d);
+      box.appendChild(row);
+    }
+    save.disabled = false;
+  } catch (e) { box.textContent = ''; box.appendChild(el('div', 'empty', '拉场次失败：' + e.message)); }
+}
+const closeModal = () => $('#modal').classList.remove('on');
+
+// ============================================================
+//  播放诊断：探测 / AB / 事件 / 报告
+// ============================================================
+function pageDiag() {
+  const v = host(); v.textContent = '';
+  const wrap = el('div', 'wrap');
+  const h = el('div', 'page-head'); h.appendChild(el('h2', null, '播放诊断')); h.appendChild(el('span', 'sub', '')); wrap.appendChild(h);
+  const card = el('div', 'card card-pad');
+  const row = el('div', 'diag-row');
+  const mk = (t, cls, fn) => { const b = el('button', cls, t); b.onclick = fn; row.appendChild(b); return b; };
+  let ctx = null;
+  const status = el('div', 'hint'); status.style.marginBottom = '12px';
+  const probeBox = el('div', 'diag-box'); probeBox.textContent = '（还没有探测结果）';
+  const abBox = el('div', 'diag-box'); abBox.textContent = '（还没有对比结果）';
+  const evBox = el('div', 'diag-box ev'); evBox.textContent = '（还没有事件）';
+  mk('探测当前课程候选', 'key primary', async () => {
+    // 取首页第一门在播课作为探测对象。
+    const target = detailState.course && detailState.course.course_id ? detailState.course : store.courses.find((c) => c.live);
+    if (!target) return toast('没有可探测的课程，先去首页加载课程');
+    status.textContent = '探测中（会抽样分片，可能需要十几秒）…';
+    try {
+      ctx = { courseId: target.course_id, subId: target.sub_id };
+      const r = await api('/api/probe/session?course_id=' + encodeURIComponent(target.course_id) + '&sub_id=' + encodeURIComponent(target.sub_id)
+        + '&title=' + encodeURIComponent(target.title || '') + '&room=' + encodeURIComponent(target.room || ''));
+      probeBox.textContent = '';
+      const t = el('table', 'diag-t');
+      t.innerHTML = '<tr><th>机位</th><th>角色</th><th>类型</th><th>判定</th><th>HTTP</th><th>首字节</th><th>分片</th><th>剩余</th></tr>';
+      for (const p of (r.probes || [])) {
+        const tr = document.createElement('tr');
+        const rem = Number.isFinite(p.remainingSec) ? Math.round(p.remainingSec / 60) + '分' : '-';
+        for (const [val, cls] of [[p.label || p.key, ''], [p.role || '', ''], [p.type || '', ''],
+          [p.verdict || '', /^ok/.test(p.verdict || '') ? 'ok' : 'bad'], [p.status ?? '-', ''],
+          [p.ttfbMs != null ? p.ttfbMs + 'ms' : '-', ''], [p.segmentCount ?? '-', ''], [rem, '']]) {
+          const td = document.createElement('td'); td.className = cls; td.textContent = String(val); tr.appendChild(td);
+        }
+        t.appendChild(tr);
+      }
+      probeBox.appendChild(t);
+      status.textContent = '来源 ' + r.source + ' · 探测 ' + (r.probes || []).length + ' 个候选';
+    } catch (e) { status.textContent = '探测失败：' + e.message; }
+  });
+  mk('刷新事件', 'key', async () => {
+    try {
+      const r = await api('/api/play-log?limit=200');
+      evBox.textContent = '';
+      const kinds = {};
+      for (const e of (r.events || [])) kinds[e.kind] = (kinds[e.kind] || 0) + 1;
+      const sum = el('div'); sum.textContent = '共 ' + r.total + ' 条；类型：' + Object.entries(kinds).map(([k, n]) => k + '×' + n).join('  ');
+      evBox.appendChild(sum);
+      for (const e of (r.events || []).slice(-60)) {
+        const line = el('div');
+        const b = el('b', null, (e.kind || '?') + (e.event ? '/' + e.event : ''));
+        line.appendChild(b);
+        line.appendChild(document.createTextNode(' ' + JSON.stringify(Object.fromEntries(Object.entries(e).filter(([k]) => !['kind', 'event', 't', 'seq'].includes(k)))).slice(0, 200)));
+        evBox.appendChild(line);
+      }
+      status.textContent = '事件已刷新';
+    } catch (e) { status.textContent = '取事件失败：' + e.message; }
+  });
+  mk('生成报告', 'key', async () => {
+    status.textContent = '生成中…';
+    try { const r = await api('/api/diag/report'); status.textContent = '报告已写入：' + r.file; } catch (e) { status.textContent = '生成失败：' + e.message; }
+  });
+  card.appendChild(row); card.appendChild(status); card.appendChild(probeBox); card.appendChild(abBox); card.appendChild(evBox);
+  wrap.appendChild(card);
+  v.appendChild(wrap);
+}
+
+// ============================================================
+//  查老师（浙大匿名教评）：详情页显示分数 + 手动同步
+// ============================================================
+// 设计约定：**不实时访问**（第三方站点，非学校服务器）—— 平时只读本机缓存，
+// 只在点击「同步分数」时出网，一个学期同步一次即可。
+// 显示开关记在 localStorage，只在详情页显示（首页卡片保持简洁）。
+const CHALAO_KEY = 'zju_chalao_show';
+const CHALAO_TIP = '分数来自查老师（浙大匿名教评）。平时读本机缓存，只有点「同步分数」时才出网。';
+function chalaoShow() { try { return localStorage.getItem(CHALAO_KEY) !== '0'; } catch { return true; } }
+function setChalaoShow(v) { try { localStorage.setItem(CHALAO_KEY, v ? '1' : '0'); } catch {} }
+async function loadChalao() {
+  try { store.chalao = await api('/api/chalaoshi'); } catch {}
+  return store.chalao;
+}
+function chalaoEntry(name) {
+  const t = store.chalao && store.chalao.teachers;
+  return (t && name && t[name]) || null;
+}
+// 教师名旁的小徽标：查 9.8 / 查 ?（同名撞车）。点它进查老师抽屉看细节（二级界面）
+function chalaoBadge(name) {
+  if (!chalaoShow() || !name) return null;
+  const e = chalaoEntry(name);
+  if (!e) return null;
+  if (e.status === 'ok' && (e.score == null || e.score === '')) return null;
+  if (e.status !== 'ok' && e.status !== 'multiple') return null;   // 查老师上没收录：不占地方
+  const b = el('button', 'chalao' + (e.status === 'ok' ? '' : ' q'));
+  b.appendChild(el('span', 'cl-k', '查'));
+  b.appendChild(el('span', 'cl-v', e.status === 'ok' ? String(e.score) : '?'));
+  const tip = e.status === 'ok'
+    ? [(e.ratingCount ? e.ratingCount + ' 人评' : '暂无评分人数'), (e.rollCallRate ? '点名 ' + e.rollCallRate : '')].filter(Boolean).join(' · ')
+    : '查老师上有 ' + ((e.candidates || []).length) + ' 个同名老师 —— 点这里挑一个';
+  b.setAttribute('data-tip', tip);
+  b.setAttribute('aria-label', '查老师评分：' + tip);
+  b.onclick = (ev) => { ev.stopPropagation(); openChalao(name); };
+  return b;
+}
+// 开关切换后**不重画整页**（重画会把正在播的视频打断），只把这个徽标摘掉/装回去
+function applyChalaoVisibility() {
+  const head = document.querySelector('.side-head');
+  if (!head) return;
+  const old = head.querySelector('.chalao');
+  if (old) old.remove();
+  const name = head.dataset.teacher;
+  if (chalaoShow() && name) { const b = chalaoBadge(name); if (b) head.appendChild(b); }
+}
+const chalaoView = { teacher: '' };
+function openChalao(name) { chalaoView.teacher = name || ''; openDrawer('chalao'); }
+let clPoll = null;
+function stopClPoll() { if (clPoll) { clearInterval(clPoll); clPoll = null; } }
+async function startChalaoSync(body) {
+  try {
+    const r = await postJson('/api/chalaoshi/sync', body);
+    if (r.started) toast('开始同步 ' + r.total + ' 位教师，约 ' + Math.max(1, Math.round(r.etaMs / 60000)) + ' 分钟（可以关掉这个抽屉，它会自己跑）');
+    else if (r.reason === 'nothing') toast('都同步过了，没有要查的');
+    else toast('正在同步中…');
+  } catch (e) { toast('同步失败：' + e.message); }
+  openChalao(chalaoView.teacher);
+}
+// 抽屉：概览（统计 + 同步动作 + 进度 + 同名待确认）/ 某位老师的详情
+function pageChalao() {
+  const v = host(); v.textContent = '';
+  stopClPoll();
+  const wrap = el('div', 'wrap');
+  const c = store.chalao || {};
+  const stats = Object.assign({ total: 0, ok: 0, none: 0, multiple: 0, pendingWatch: 0, pendingAll: 0, needDetail: 0 }, c.stats || {});
+
+  if (chalaoView.teacher) {
+    const nm = chalaoView.teacher;
+    const head = el('div', 'page-head');
+    head.appendChild(el('h2', null, nm));
+    const back = iconKey('back', '返回概览', () => openChalao(''));
+    head.appendChild(el('span', 'spacer')); head.appendChild(back);
+    wrap.appendChild(head);
+    const card = el('div', 'card card-pad');
+    card.appendChild(el('div', 'hint', '读取中…'));
+    wrap.appendChild(card);
+    v.appendChild(wrap);
+    api('/api/chalaoshi/teacher?name=' + encodeURIComponent(nm)).then((r) => {
+      card.textContent = '';
+      if (!r.found) {
+        card.appendChild(el('div', 'empty', '本机缓存里还没有这位老师的记录 —— 点上面的「返回概览」再同步一次'));
+        return;
+      }
+      const e = r.entry;
+      const big = el('div', 'cl-big');
+      big.appendChild(el('span', 'cl-num', e.status === 'ok' && e.score != null ? String(e.score) : '—'));
+      big.appendChild(el('span', 'cl-unit', e.status === 'ok' ? '分' : (e.status === 'multiple' ? '（同名待确认）' : '查老师上没有收录')));
+      card.appendChild(big);
+      const meta = [(e.ratingCount ? e.ratingCount + ' 人参与评分' : ''), (e.rollCallRate ? '认为会点名 ' + e.rollCallRate : ''),
+        (e.siteCollege || '')].filter(Boolean).join(' · ');
+      if (meta) card.appendChild(el('div', 'hint', meta));
+      if (e.status === 'multiple' && (e.candidates || []).length) {
+        card.appendChild(el('div', 'hint', '同名撞车（用学院挑）：'));
+        for (const cand of e.candidates) {
+          const row = el('div', 'row');
+          row.appendChild(el('div', 'grow', ''));
+          const g = row.querySelector('.grow');
+          g.appendChild(el('div', 'l1', cand.college || '（未写学院）'));
+          g.appendChild(el('div', 'l2', cand.score == null ? '没有评分' : ('评分 ' + cand.score)));
+          row.appendChild(iconBtn('check', '就是这个老师', async () => {
+            try { await postJson('/api/chalaoshi/pick', { name: nm, tid: cand.tid }); await loadChalao(); toast('已确定'); openChalao(nm); }
+            catch (err) { toast(err.message); }
+          }, 'sm'));
+          card.appendChild(row);
+        }
+      }
+      if ((e.courses || []).length) {
+        card.appendChild(el('div', 'hint', '各课平均绩点（查老师上同学们报的）'));
+        const t = el('table', 'diag-t');
+        for (const k of e.courses) {
+          const tr = el('tr');
+          tr.appendChild(el('td', null, k.name));
+          tr.appendChild(el('td', null, k.gpa == null ? '' : String(k.gpa)));
+          tr.appendChild(el('td', null, k.count || ''));
+          t.appendChild(tr);
+        }
+        card.appendChild(t);
+      }
+      if (e.detailError) card.appendChild(el('div', 'hint', '详情没抓到：' + e.detailError));
+    }).catch((err) => { card.textContent = ''; card.appendChild(el('div', 'empty', '读取失败：' + err.message)); });
+    return;
+  }
+
+  const head = el('div', 'page-head');
+  head.appendChild(el('h2', null, '查老师评分'));
+  head.appendChild(el('span', 'sub', c.updatedAt ? ('上次同步 ' + fmtDateTime(c.updatedAt)) : '还没同步过'));
+  wrap.appendChild(head);
+
+  const card = el('div', 'card card-pad');
+  card.appendChild(el('div', 'hint', CHALAO_TIP));
+  const kv = el('div', 'cl-stats');
+  const put = (n, label) => { const d = el('div', 'cl-stat'); d.appendChild(el('b', null, String(n))); d.appendChild(el('span', null, label)); kv.appendChild(d); };
+  put(stats.ok, '已匹配');
+  put(stats.multiple, '同名待确认');
+  put(stats.none, '查老师上没有');
+  put(stats.pendingWatch, '待同步（能看的课）');
+  card.appendChild(kv);
+
+  const acts = el('div', 'diag-row');
+  acts.appendChild(iconKey('cloud-down', '同步分数', () => startChalaoSync({ scope: 'watch' }), 'primary'));
+  acts.appendChild(iconKey('download', '补全详情', () => startChalaoSync({ detailOnly: true })));
+  acts.appendChild(iconKey('refresh', '重抓已同步', () => startChalaoSync({ force: true, scope: 'watch' })));
+  acts.appendChild(iconKey('archive', '同步全部（较慢）', () => startChalaoSync({ scope: 'all' })));
+  card.appendChild(acts);
+  const eta = stats.pendingWatch ? ('待同步 ' + stats.pendingWatch + ' 位，约 ' + Math.max(1, Math.round(stats.pendingWatch * ((c.gapMs || 1200) + 1200) / 60000)) + ' 分钟')
+    : '能看的课都同步过了';
+  card.appendChild(el('div', 'hint', eta + '；全部课程里有 ' + stats.pendingAll + ' 位待同步（约 ' + Math.max(1, Math.round(stats.pendingAll * ((c.gapMs || 1200) + 1200) / 60000)) + ' 分钟）。'));
+  const prog = el('div', 'cl-prog');
+  const ptext = el('div', 'hint');
+  const pbar = el('div', 'cl-bar'); const pfill = el('div', 'cl-fill');
+  pbar.appendChild(pfill);
+  prog.appendChild(ptext); prog.appendChild(pbar);
+  card.appendChild(prog);
+  wrap.appendChild(card);
+
+  const amb = Object.entries(c.teachers || {}).filter(([, e]) => e.status === 'multiple');
+  if (amb.length) {
+    const c2 = el('div', 'card');
+    const h2 = el('div', 'card-h');
+    h2.appendChild(el('h3', null, '同名待确认（' + amb.length + '）'));
+    c2.appendChild(h2);
+    const rows = el('div', 'rows');
+    for (const [nm, e] of amb) {
+      const row = el('div', 'row');
+      const g = el('div', 'grow');
+      g.appendChild(el('div', 'l1', nm));
+      g.appendChild(el('div', 'l2', (e.candidates || []).map((x) => x.college || '?').join(' / ') || '—'));
+      row.appendChild(g);
+      row.appendChild(iconKey('check', '挑一个', () => openChalao(nm)));
+      rows.appendChild(row);
+    }
+    c2.appendChild(rows);
+    wrap.appendChild(c2);
+  }
+  v.appendChild(wrap);
+
+  // 同步进行中就自己刷新进度（只改进度那两行，不重画整个抽屉）
+  const tick = async () => {
+    let s = null;
+    try { s = await api('/api/chalaoshi/sync'); } catch { return; }
+    if (!s) return;
+    if (s.running) {
+      const pct = s.total ? Math.round(s.done / s.total * 100) : 0;
+      ptext.textContent = '同步中 ' + s.done + '/' + s.total + '（已匹配 ' + s.ok + ' · 没收录 ' + s.none + ' · 同名 ' + s.multiple + ' · 失败 ' + s.failed + '）'
+        + (s.current ? ' · 正在查 ' + s.current : '') + (s.etaMs ? ' · 约剩 ' + Math.max(1, Math.round(s.etaMs / 60000)) + ' 分钟' : '');
+      pfill.style.width = pct + '%';
+      if (!clPoll) clPoll = setInterval(tick, 1500);
+    } else {
+      stopClPoll();
+      pfill.style.width = '100%';
+      if (s.finishedAt) {
+        ptext.textContent = '上次同步完成：' + s.done + '/' + s.total + '（已匹配 ' + s.ok + ' · 没收录 ' + s.none + ' · 同名 ' + s.multiple + ' · 失败 ' + s.failed + '）'
+          + (s.lastError ? ' · 最后一条错误：' + s.lastError : '');
+        await loadChalao();
+      }
+    }
+  };
+  tick();
+}
+
+// ============================================================
+//  设置（令牌 / 登录 / 存储 / 版本）
+// ============================================================
+function pageSettings() {
+  const v = host(); v.textContent = '';
+  const wrap = el('div', 'wrap');
+  const h = el('div', 'page-head'); h.appendChild(el('h2', null, '设置')); wrap.appendChild(h);
+
+  const c1 = el('div', 'card card-pad'); c1.style.marginBottom = '16px';
+  c1.appendChild(el('h3', null, '访问令牌 / 自动登录'));
+  const f1 = el('div', 'fld'); f1.appendChild(el('label', null, 'JWT token（手动粘贴）'));
+  const inJwt = document.createElement('input'); inJwt.type = 'text'; inJwt.placeholder = '从 F12 的 Authorization: Bearer 后面复制';
+  f1.appendChild(inJwt); c1.appendChild(f1);
+  const f2 = el('div', 'fld'); f2.appendChild(el('label', null, '学号'));
+  const inU = document.createElement('input'); inU.type = 'text'; f2.appendChild(inU); c1.appendChild(f2);
+  const f3 = el('div', 'fld'); f3.appendChild(el('label', null, '密码'));
+  const inP = document.createElement('input'); inP.type = 'password'; f3.appendChild(inP); c1.appendChild(f3);
+  const acts = el('div', 'diag-row');
+  const b1 = el('button', 'key primary', '保存 token');
+  b1.onclick = async () => { try { await postJson('/api/jwt', { token: inJwt.value.trim() }); toast('已保存'); refreshLoginBtn(); } catch (e) { toast(e.message); } };
+  const b2 = el('button', 'key', '保存账密并登录');
+  b2.onclick = async () => {
+    if (!inU.value || !inP.value) return toast('填学号和密码');
+    try { await postJson('/api/credentials', { username: inU.value.trim(), password: inP.value }); toast('账密已保存，正在登录…'); await postJson('/api/login', {}); toast('登录成功'); refreshLoginBtn(); }
+    catch (e) { toast('登录失败：' + e.message); }
+  };
+  const b3 = el('button', 'key', '立即登录');
+  b3.onclick = async () => { try { await postJson('/api/login', {}); toast('登录成功'); refreshLoginBtn(); } catch (e) { toast('登录失败：' + e.message); } };
+  acts.appendChild(b1); acts.appendChild(b2); acts.appendChild(b3);
+  c1.appendChild(acts);
+  wrap.appendChild(c1);
+
+  const c2 = el('div', 'card card-pad');
+  c2.appendChild(el('h3', null, '存储'));
+  const st = el('div', 'hint');
+  st.textContent = '录制目录占用：' + fmtBytes(store.storage.bytes) + '（' + store.storage.files + ' 个文件）';
+  c2.appendChild(st);
+  wrap.appendChild(c2);
+  v.appendChild(wrap);
+}
+
+// ============================================================
+//  路由
+// ============================================================
+function route() {
+  revokeThumbs();                 // 换页就把上一屏的封面 blob 回收掉
+  try { routeInner(); } catch (e) {
+    // 一次异常就会让整页变空，看起来像"卡死"。这里兜住：把错误显式显示出来，
+    // 页面结构仍然可用（可以切页/刷新），错误也不会被吞掉。
+    console.error('[zju-ui] 渲染失败', e);
+    const v = host();
+    if (v) {
+      v.textContent = '';
+      const w = el('div', 'wrap');
+      const c = el('div', 'empty');
+      c.textContent = '这个页面渲染出错了：' + (e && e.message ? e.message : String(e))
+        + '　—— 点这里刷新重试';
+      c.style.cursor = 'pointer';
+      c.onclick = () => location.reload();
+      w.appendChild(c); v.appendChild(w);
+    }
+  }
+}
+// 这些页面改成**侧边抽屉**：点它们不再换页，所以底下正在播的视频不会被打断。
+const PANELS = {
+  cache: { title: '已缓存地址', render: () => pageCache() },
+  marks: { title: '预约录制', render: () => pageMarks() },
+  stars: { title: '星标', render: () => pageStars() },
+  jobs: { title: '录制任务', render: () => pageJobs() },
+  diag: { title: '播放诊断', render: () => pageDiag() },
+  settings: { title: '设置', render: () => pageSettings() },
+  chalao: { title: '查老师评分', render: () => pageChalao() },
+};
+let renderedBase = null;      // 当前已渲染的"底页"hash（抽屉关掉后要回到它）
+
+function openDrawer(name) {
+  const meta = PANELS[name];
+  if (!meta) return;
+  PAGE_HOST = $('#drawerBody');
+  $('#drawerTitle').textContent = meta.title;
+  $('#drawerBody').textContent = '';
+  meta.render();
+  $('#drawer').classList.add('on');
+  $('#drawerBackdrop').classList.add('on');
+  renderNav(name);
+}
+// 只隐藏，不动地址栏（用于"导航到别的页面"时顺手关掉）
+function hideDrawer() {
+  PAGE_HOST = null;
+  stopClPoll();                 // 抽屉关了就别再轮询查老师同步进度
+  $('#drawer').classList.remove('on');
+  $('#drawerBackdrop').classList.remove('on');
+}
+// 主动关闭：把地址栏收回到底页，但**用 replaceState 静默改**，
+// 这样不会触发 hashchange → 不会重新渲染底页 → 视频继续播。
+function closeDrawer() {
+  const wasOpen = $('#drawer').classList.contains('on');
+  hideDrawer();
+  if (wasOpen) {
+    try { history.replaceState(null, '', renderedBase || '#/'); } catch {}
+    renderNav(currentNavId());
+  }
+}
+
+function routeInner() {
+  const hash = location.hash || '#/';
+  const page = hash.replace(/^#\//, '').split('?')[0] || 'home';
+
+  if (PANELS[page]) {
+    // 抽屉路由：底下的页面原样保留（没有就垫一个首页），只把抽屉滑出来
+    if (!renderedBase) { renderedBase = '#/'; renderNav('home'); pageHome(); }
+    openDrawer(page);
+    return;
+  }
+
+  hideDrawer();
+  const m = hash.match(/^#\/c\/([^/]+)\/([^/]+)/);
+  if (m) {
+    renderedBase = hash.split('?')[0];
+    renderNav('home');
+    pageDetail(decodeURIComponent(m[1]), decodeURIComponent(m[2]));
+    scrollTo(0, 0);
+    return;
+  }
+  renderedBase = page === 'live' ? '#/live' : '#/';
+  if (page === 'live') { store.filter.liveOnly = true; store.filter.page = 1; renderNav('live'); }
+  else renderNav('home');
+  pageHome();
+}
+window.addEventListener('hashchange', route);
+
+// ============================================================
+//  顶栏交互
+// ============================================================
+$('#navSearch').addEventListener('input', (e) => {
+  store.filter.q = e.target.value.trim();
+  store.filter.page = 1;
+  if (!location.hash || location.hash === '#/' || location.hash === '#/live') { if (location.hash !== '#/live') location.hash = '#/live'; else route(); }
+  else route();
+});
+$('#drawerClose').onclick = closeDrawer;
+$('#drawerBackdrop').onclick = closeDrawer;
+addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (popEl) { closePop(); return; }
+  if (!$('#avatarMenu').hidden) { hideAvatarMenu(); return; }
+  if ($('#drawer').classList.contains('on')) closeDrawer();
+});
+$('#themeToggle').onclick = () => { toggleTheme(); paintTopbar(); };
+// 封面开关：默认关。开了会每屏抓最多 12 张，每张都要从 CDN 拉一段流，30 分钟内不重复。
+$('#thumbBtn').onclick = () => setThumbs(!showThumbs);
+function setThumbs(v) {
+  showThumbs = !!v;
+  try { localStorage.setItem('zju_thumbs', showThumbs ? '1' : '0'); } catch {}
+  toast(showThumbs ? '封面抓帧：开（滚到哪儿抓到哪儿，每张约 0.3~0.6MB 上游流量）' : '封面抓帧：关，不再拉直播流');
+  paintTopbar();
+  // 详情页没有封面，不用重画 —— 重画会把正在播的视频打断
+  if (!/^#\/c\//.test(location.hash || '')) route();
+}
+$('#avatarBtn').onclick = (e) => { e.stopPropagation(); toggleAvatarMenu(); };
+addEventListener('click', (e) => {
+  if (popEl && e.target.closest && !e.target.closest('.pop')) closePop();
+  if (e.target.closest && (e.target.closest('#avatarMenu') || e.target.closest('#avatarBtn'))) return;
+  hideAvatarMenu();
+});
+$('#modal').onclick = (e) => { if (e.target === $('#modal')) closeModal(); };
+Asr.bind();
+
+// ---- 顶栏右侧：图标 + 悬停说明 ----
+function paintTopbar() {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  const tb = $('#themeToggle');
+  tb.textContent = ''; tb.appendChild(icon(dark ? 'sun' : 'moon'));
+  tb.setAttribute('data-tip', dark ? '现在是暗色，点一下切亮色' : '现在是亮色，点一下切暗色');
+  tb.setAttribute('aria-label', '切换明暗');
+  const th = $('#thumbBtn');
+  th.textContent = ''; th.appendChild(icon('image'));
+  th.classList.toggle('on', showThumbs);
+  th.setAttribute('data-tip', showThumbs ? '封面抓帧：开（每屏最多抓 12 张）' : '封面抓帧：关（开了会拉直播流，耗流量）');
+  th.setAttribute('aria-label', '封面抓帧');
+  paintAvatar();
+}
+
+// ---- 头像：本地选图（不写盘、不上传）+ 令牌状态点 + 二级菜单 ----
+const AVATAR_KEY = 'zju_avatar';
+function avatarSrc() { try { return localStorage.getItem(AVATAR_KEY) || ''; } catch { return ''; } }
+function paintAvatar() {
+  const src = avatarSrc();
+  const img = $('#avatarImg'), fb = $('#avatarFallback');
+  if (src) { img.src = src; img.hidden = false; fb.hidden = true; }
+  else { img.removeAttribute('src'); img.hidden = true; fb.hidden = false; }
+}
+// 选一张本机图片当头像：读进来 → canvas 缩到 128×128 → 存 localStorage。
+// 只是本机选图，不上传：图像数据不出本机。
+function pickAvatar() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.onchange = () => {
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    const fr = new FileReader();
+    fr.onerror = () => toast('这张图读不出来');
+    fr.onload = () => {
+      const im = new Image();
+      im.onerror = () => toast('这个格式浏览器解不开，换张 png/jpg');
+      im.onload = () => {
+        const S = 128, cv = document.createElement('canvas');
+        cv.width = S; cv.height = S;
+        const g = cv.getContext('2d');
+        const k = Math.min(im.width, im.height);          // 居中裁成正方形
+        g.drawImage(im, (im.width - k) / 2, (im.height - k) / 2, k, k, 0, 0, S, S);
+        const out = cv.toDataURL('image/jpeg', 0.85);
+        try { localStorage.setItem(AVATAR_KEY, out); }
+        catch { toast('这张图存不下，换张小一点的'); return; }
+        paintAvatar();
+        toast('头像已换（只存在这台机器的浏览器里）');
+      };
+      im.src = String(fr.result);
+    };
+    fr.readAsDataURL(f);
+  };
+  inp.click();
+}
+function hideAvatarMenu() { $('#avatarMenu').hidden = true; }
+function toggleAvatarMenu() {
+  const m = $('#avatarMenu');
+  if (m.hidden) { buildAvatarMenu(); m.hidden = false; } else hideAvatarMenu();
+}
+function buildAvatarMenu() {
+  const m = $('#avatarMenu');
+  m.textContent = '';
+  const h = el('div', 'mh');
+  h.textContent = loginState.ok
+    ? ('令牌有效' + (loginState.exp ? '，至 ' + new Date(loginState.exp * 1000).toLocaleString('zh-CN') : '')
+       + (loginState.auto ? '　·　已配置自动登录' : ''))
+    : '令牌无效或缺失 —— 进「设置」重新登录';
+  m.appendChild(h);
+  const mi = (iconName, label, right, fn, on) => {
+    const b = el('button', 'mi' + (on ? ' on' : ''));
+    b.appendChild(icon(iconName, 'sm'));
+    b.appendChild(el('span', null, label));
+    if (right) b.appendChild(el('span', 'k', right));
+    b.onclick = fn;
+    m.appendChild(b);
+    return b;
+  };
+  mi('settings', '设置（令牌 / 登录 / 存储 / 版本）', '', () => { hideAvatarMenu(); location.hash = '#/settings'; });
+  m.appendChild(el('div', 'msep'));
+  const cs = store.chalao && store.chalao.stats;
+  mi(chalaoShow() ? 'eye' : 'eye-off', '显示查老师评分', chalaoShow() ? '开' : '关',
+    () => { setChalaoShow(!chalaoShow()); applyChalaoVisibility(); buildAvatarMenu(); }, chalaoShow());
+  mi('cloud-down', '同步查老师评分', cs ? (cs.pendingWatch ? cs.pendingWatch + ' 位待同步' : '已是最新') : '',
+    () => { hideAvatarMenu(); openChalao(''); });
+  m.appendChild(el('div', 'msep'));
+  mi('image', '封面抓帧', showThumbs ? '开' : '关', () => { setThumbs(!showThumbs); buildAvatarMenu(); }, showThumbs);
+  const dark = document.documentElement.dataset.theme === 'dark';
+  mi(dark ? 'sun' : 'moon', dark ? '切到亮色' : '切到暗色', '', () => { toggleTheme(); paintTopbar(); buildAvatarMenu(); });
+  m.appendChild(el('div', 'msep'));
+  mi('user', '选一张本地图片当头像…', '', () => { pickAvatar(); });
+  if (avatarSrc()) mi('x', '用回默认头像', '', () => { try { localStorage.removeItem(AVATAR_KEY); } catch {} paintAvatar(); buildAvatarMenu(); toast('已用回默认'); });
+}
+
+let loginState = { ok: false, exp: 0, auto: false };
+async function refreshLoginBtn() {
+  try {
+    const s = await api('/api/status');
+    const ok = !!(s.jwt && s.jwt.present && !s.jwt.expired);
+    loginState = { ok, exp: (s.jwt && s.jwt.exp) || 0, auto: !!s.autoLogin };
+    $('#avatarDot').classList.toggle('bad', !ok);
+    const tip = ok
+      ? ('令牌有效' + (loginState.exp ? '，至 ' + new Date(loginState.exp * 1000).toLocaleString('zh-CN') : '')
+         + (loginState.auto ? '　·　自动登录已配置' : '') + '　—　点这里：设置 / 查老师 / 主题')
+      : '令牌无效或缺失 —— 点这里去设置里重新登录';
+    const b = $('#avatarBtn');
+    b.setAttribute('data-tip', tip);
+    b.setAttribute('aria-label', '账号与设置');
+    const fb = $('#avatarFallback');
+    fb.textContent = ok ? (loginState.auto ? '自' : '令') : '!';
+    paintAvatar();
+  } catch {}
+}
+
+// ============================================================
+//  启动
+// ============================================================
+(async function boot() {
+  await loadStorage();
+  await loadJobs();
+  await refreshLoginBtn();
+  try { store.marks = (await api('/api/marks')).marks; } catch {}
+  try { store.stars = (await api('/api/stars')).stars; } catch {}
+  await loadCache();          // 本机数据，先拿到手；课程接口挂了「已缓存」也照常能用
+  await loadChalao();         // 查老师评分也是本机缓存（没同步过就是空的，不影响别的）
+  try { await loadCourses(false); }
+  catch (e) {
+    // 课程拉不到（令牌过期 / 上游挂）时**仍然要走 route()**：
+    // 否则直链打开 #/marks、#/settings 这类抽屉会什么都不显示（右侧面板并不依赖课程列表）。
+    const w = el('div', 'wrap');
+    w.appendChild(el('div', 'empty', '课程加载失败：' + e.message + '　（令牌可能过期，可点右上角头像进「设置」重新登录）'));
+    const v0 = $('#view'); v0.textContent = ''; v0.appendChild(w);
+    renderNav('home');
+  }
+  paintTopbar();
+  route();
+  setInterval(() => { loadJobs().then(() => {
+    // 抽屉开着「录制任务」就就地重画抽屉；否则只更新进度卡（不重排整页，避免打断播放）
+    if ($('#drawer').classList.contains('on') && $('#drawerTitle').textContent === '录制任务') openDrawer('jobs');
+    else { renderNav(currentNavId()); renderRec(); }
+  }); }, 5000);
+  // 「已录 mm:ss」的秒数必须自己走：/api/jobs 是 5 秒一次，只负责刷新"有哪些任务"
+  setInterval(() => { if (document.querySelector('.rec-card')) renderRec(); }, 1000);
+  setInterval(loadStorage, 30000);
+})();
+function currentNavId() {
+  const p = (location.hash || '#/').replace(/^#\//, '').split('?')[0] || 'home';
+  return p === '' ? 'home' : p;
+}
+})();
+</script>
+</body>
+</html>

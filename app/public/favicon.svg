@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- B 方案（与顶栏 logo 同一套）：描边版摄像机。单一主色 + 一个红点，不用渐变。 -->
+  <rect x="4.5" y="4.5" width="55" height="55" rx="16" fill="none" stroke="#00AEEC" stroke-width="4"/>
+  <path d="M17.5 26c0-2.2 1.8-4 4-4h19c2.2 0 4 1.8 4 4v14c0 2.2-1.8 4-4 4h-19c-2.2 0-4-1.8-4-4V26Z"
+        fill="none" stroke="#00AEEC" stroke-width="4"/>
+  <path d="M44.5 31.5l8-5v13l-8-5" fill="none" stroke="#00AEEC" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="27" cy="33" r="4.6" fill="#FF5C4D"/>
+</svg>

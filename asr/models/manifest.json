@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "_comment": "模型清单。仓库只提交本文件与 asr/，不提交大模型；模型实际落在 runtime/asr/models/<dir>/（runtime/ 已在 .gitignore，不进 git）。安装脚本按本文件的 source + sha256 显式下载并逐文件校验，运行阶段只读该目录、禁止联网。",
+  "modelsRoot": "runtime/asr/models",
+  "profiles": {
+    "streaming-zh": {
+      "kind": "transducer",
+      "dir": "streaming-zh",
+      "version": "2025-06-30",
+      "notes": "普通话课程默认模型。",
+      "source": {
+        "provider": "huggingface",
+        "repo": "csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30",
+        "revision": "ad658fa0201659a09ea3c176129a191c77ecae8f",
+        "lastModified": "2025-06-30T06:49:56.000Z",
+        "urlTemplate": "https://hf-mirror.com/csukuangfj/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30/resolve/main/{file}"
+      },
+      "license": {
+        "declared": false,
+        "spdx": null,
+        "note": "模型仓库 README 未声明许可证。上游 sherpa-onnx 项目使用 Apache-2.0，模型权重及训练数据的授权状态未核实。"
+      },
+      "files": {
+        "encoder.int8.onnx": {
+          "sha256": "5ac51e27981bb4dab01bb9be4958453ba50c3b61c063ddda0eab23fd3671aa4f",
+          "size": 161141793,
+          "verifiedAgainst": "hf api lfs.sha256"
+        },
+        "decoder.onnx": {
+          "sha256": "06522ad63cec0fdf6809f4e1db9bb4f7d710c34582e3b35db62ac60eccafac7e",
+          "size": 5165083,
+          "verifiedAgainst": "hf api lfs.sha256"
+        },
+        "joiner.int8.onnx": {
+          "sha256": "b34584dc6f561089e1d747fedebb3765f2caa72c927ef54d7ca55e5ae40a814b",
+          "size": 1033416,
+          "verifiedAgainst": "hf api lfs.sha256"
+        },
+        "tokens.txt": {
+          "sha256": "6193c7ea1c96d0d9a1e9652789b40d13a8a913b434a5451e93158f5a09fd6652",
+          "size": 20628,
+          "gitBlobSha1": "f15034ba47f26a74abdf68168b3e02c7055bb8b3",
+          "verifiedAgainst": "hf api blobId"
+        }
+      },
+      "config": {
+        "feature_dim": 80,
+        "encoder": "encoder.int8.onnx",
+        "decoder": "decoder.onnx",
+        "joiner": "joiner.int8.onnx",
+        "rule1": 2.4,
+        "rule2": 1.2,
+        "rule3": 20.0
+      }
+    }
+  }
+}

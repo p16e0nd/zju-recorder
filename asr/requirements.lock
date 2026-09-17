@@ -1,0 +1,20 @@
+# zju-asr-worker 依赖锁（Python 3.12 / Windows x64）
+#
+# 安装（必须用 --require-hashes，否则锁定无意义）：
+#   <venv-python> -m pip install --require-hashes -r asr/requirements.lock
+#
+# 哈希来源：PyPI JSON API 发布的 wheel digest，
+# 与 asr/models/manifest.json 的模型哈希一起构成 ASR 子系统的供应链闭环。
+#
+# 换 Python 小版本（如 3.13）时 cp312 → cp3xx 的 wheel 不同，哈希必须重新生成：
+#   <venv-python> -m pip download --only-binary=:all: -d wheelhouse sherpa-onnx==1.13.8
+#   然后照下面格式补 --hash。
+
+numpy==2.5.3 \
+    --hash=sha256:0a59a421a32580a009e8a1751345bf829631b990dc1794b80514ab722b435def
+
+sherpa-onnx==1.13.8 \
+    --hash=sha256:566e49ad3fb2aa8ceb723a52f9809aa6c2ee0a5eb3b0946c3fd2374af807a5c6
+
+sherpa-onnx-core==1.13.8 \
+    --hash=sha256:5579e80196d516e6dae23c8f629292ce3142ab8869925d32b94612fd86f93733

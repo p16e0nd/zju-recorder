@@ -1,0 +1,25 @@
+# 便携运行时（node.exe / ffmpeg.exe，可用 download-ffmpeg.bat 重新获取，不入库）
+runtime/
+
+# 运行日志
+*.log
+
+# 录制的视频产物（保存在 %USERPROFILE%\ZJU-Recordings，本目录下不应有）
+*.mp4
+*.ts
+*.m3u8
+
+# Python 字节码缓存
+__pycache__/
+*.pyc
+
+# ASR：venv 与模型都很大，只保留 asr/models/manifest.json，实体落在 runtime/asr/
+runtime/asr/
+
+# WAV/PCM 音频中间产物
+*.wav
+*.pcm
+*.f32le
+
+# 本地压缩包
+*.zip
