@@ -45,6 +45,8 @@
   <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/></symbol>
   <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9.5" y="3.5" width="5" height="10" rx="2.5"/><path d="M6.5 11.5a5.5 5.5 0 0 0 11 0"/><path d="M12 17v3.5"/></symbol>
   <symbol id="i-cloud-down" viewBox="0 0 24 24"><path d="M7.5 16.5A4 4 0 0 1 7 8.6a5.2 5.2 0 0 1 10 1.4 3.6 3.6 0 0 1-.5 6.5"/><path d="M12 12v6"/><path d="M9.5 15.5L12 18l2.5-2.5"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7.5 17.5A4 4 0 0 1 7 9.6a5.2 5.2 0 0 1 10 1.4 3.6 3.6 0 0 1-.5 6.5"/></symbol>
+  <symbol id="i-pc" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="12.5" rx="2"/><path d="M12 17v3.5"/><path d="M8.5 20.5h7"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></symbol>
   <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M4 4l16 16"/><path d="M9.6 5.9A9.7 9.7 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17.5 17.5 0 0 1-3.2 3.9"/><path d="M6.4 7.6A17 17 0 0 0 2.5 12S6 18.5 12 18.5c1.2 0 2.3-.2 3.3-.6"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
@@ -954,15 +956,17 @@ function buildBlocks(c) {
     });
     const bCopy = iconBtn('copy', '复制全文', () => Asr.copyText());
     const bStop = iconBtn('stop', '停止识别', () => Asr.stop());
-    const bStart = iconKey('mic', '开始识别', () => Asr.start(detailState.cur), 'primary');
-    for (const b of [bExport, bCopy, bStop, bStart]) ah.appendChild(b);
+    // 字幕源切换；图标随源切换。
+    const bSrc = iconBtn('pc', '字幕源：本地，点按切换', () => Asr.toggleSource());
+    const bStart = iconKey('mic', '开始识别', () => Asr.start(detailState.cur, detailState.course), 'primary');
+    for (const b of [bExport, bCopy, bStop, bSrc, bStart]) ah.appendChild(b);
     asr.appendChild(ah);
     const ameta = el('div', 'asr-meta'); asr.appendChild(ameta);
     const alive = el('div', 'asr-live'); asr.appendChild(alive);
     const abody = el('div', 'asr-body'); asr.appendChild(abody);
     const ahint = el('div', 'asr-hint'); asr.appendChild(ahint);
     Asr.mount({ panel: asr, dot, state: stt, meta: ameta, live: alive, body: abody, hint: ahint,
-                startBtn: bStart, stopBtn: bStop, expoBtns: [bExport, bCopy] });
+                startBtn: bStart, stopBtn: bStop, srcBtn: bSrc, expoBtns: [bExport, bCopy] });
     ctx.asrPanel = asr;
     return asr;
   })();

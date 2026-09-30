@@ -2,9 +2,11 @@
 //  zju-asr —— 实时字幕面板。
 //  按 seq 去重 + 接回会话时对齐 lastEventId，否则刷新/重连会把 final 重复追加。
 //
+//  字幕源有两个：local / cloud。
 //  用法：
-//    ZJU.Asr.mount({ panel, dot, state, meta, live, body, hint, buttons... })
-//    ZJU.Asr.start(stream)   // stream 需要带 streamRef
+//    ZJU.Asr.mount({ panel, dot, state, meta, live, body, hint, srcBtn, buttons... })
+//    ZJU.Asr.start(stream, course)
+//    ZJU.Asr.toggleSource()
 //    ZJU.Asr.stop()
 // ============================================================
 (function (global) {
@@ -13,19 +15,36 @@
 
   let D = null;                 // DOM 引用
   let session = null, es = null, segs = [], lastSeq = 0, metaRef = null, timer = null;
+  let source = 'local';         // 当前字幕源：'local' | 'cloud'
+  let lastCourse = null;        // 最近一次 start 的课程对象
+  let lastStream = null;        // 最近一次 start 的流对象
 
-  function mount(refs) { D = refs; syncIdle(); }   // 挂载时先按「未开启」摆好按钮，别把停止/导出都亮着
+  function mount(refs) { D = refs; paintSourceBtn(); syncIdle(); }   // 挂载时先按「未开启」摆好按钮，别把停止/导出都亮着
   function els() { return D; }
+
+  const sourceLabel = (s) => (s === 'cloud' ? '云端' : '本地');
+  const sourceIcon = (s) => (s === 'cloud' ? 'cloud' : 'pc');
+  // 切换键的图标随源切换：云 = 云端，显示器 = 本机
+  function paintSourceBtn() {
+    if (!D || !D.srcBtn) return;
+    const u = D.srcBtn.querySelector('use');
+    if (u) u.setAttribute('href', '#i-' + sourceIcon(source));
+    const tip = '字幕源：' + sourceLabel(source) + '，点按切换';
+    D.srcBtn.setAttribute('data-tip', tip);
+    D.srcBtn.setAttribute('aria-label', tip);
+  }
 
   function showState(status, error) {
     if (!D) return;
-    const map = {
+    const base = {
       idle: ['', '未开启'],
-      starting: ['load', '模型加载中…'], loading: ['load', '模型加载中…'],
-      running: ['live', '识别中'], stopping: ['load', '正在停止…'],
+      starting: ['load', source === 'cloud' ? '连接字幕服务…' : '模型加载中…'],
+      loading: ['load', source === 'cloud' ? '连接字幕服务…' : '模型加载中…'],
+      running: ['live', '识别中'],
+      stopping: ['load', '正在停止…'],
       stopped: ['', '已停止'], error: ['err', '出错'],
     };
-    const [kind, text] = map[status] || ['', '未开启'];
+    const [kind, text] = base[status] || ['', '未开启'];
     D.dot.className = 'asr-dot ' + kind;
     D.state.textContent = text;
     if (error) { D.dot.className = 'asr-dot err'; D.state.textContent = '已降级'; }
@@ -81,8 +100,11 @@
     if (session.course) parts.push(session.course);
     if (session.label) parts.push(session.label);
     parts.push('已听 ' + fmtDur(secs), segs.length + ' 段');
-    if (session.rtf != null) parts.push('RTF ' + Number(session.rtf).toFixed(2));
-    if (session.rssMb != null) parts.push(Math.round(session.rssMb) + 'MB');
+    if ((session.source || source) === 'cloud') parts.push('云端 · ' + (session.frames || 0) + ' 帧');
+    else {
+      if (session.rtf != null) parts.push('RTF ' + Number(session.rtf).toFixed(2));
+      if (session.rssMb != null) parts.push(Math.round(session.rssMb) + 'MB');
+    }
     D.meta.textContent = parts.join(' · ');
   }
   function copyText(t) {
@@ -127,7 +149,7 @@
       setLive('');
       if (ev.text && ev.text.trim()) { segs.push({ t0Ms: ev.t0Ms || 0, t1Ms: ev.t1Ms || 0, text: ev.text }); renderSegs(); }
     } else if (ev.type === 'metric') {
-      if (session) { session.rtf = ev.rtf; session.rssMb = ev.rssMb; }
+      if (session) { session.rtf = ev.rtf; session.rssMb = ev.rssMb; if (ev.frames != null) session.frames = ev.frames; }
     } else if (ev.type === 'error') {
       showState('error', ev.message || ev.code);
       hint('识别出错：' + (ev.message || ev.code));
@@ -155,12 +177,70 @@
     };
   }
 
-  async function start(stream) {
+  async function start(stream, course, wantSource) {
     if (!D) return;
+    if (wantSource && wantSource !== source) source = wantSource;
+    if (course) lastCourse = course;
+    if (stream) lastStream = stream;
+    paintSourceBtn();
     hint(''); showState('starting'); D.state.textContent = '正在准备…';
     let st;
     try { st = await api('/api/asr/status'); }
     catch (err) { showState('error'); hint('取不到 ASR 状态：' + err.message); return; }
+
+    if (st.activeSessionId && st.session) {
+      if ((st.session.source || 'local') === source) {
+        source = st.session.source || 'local';
+        paintSourceBtn();
+        session = st.session; metaRef = st.session;
+        segs = (st.session.finals || []).map((f) => ({ t0Ms: f.t0Ms, t1Ms: f.t1Ms, text: f.text }));
+        lastSeq = (st.session.stats && st.session.stats.events) || 0;
+        renderSegs(); setLive(st.session.partial || '');
+        showState(st.session.status, st.session.error);
+        metaText(); connect(st.session.id);
+        return;
+      }
+      try {
+        await api('/api/asr/stop', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: st.session.id }) });
+        for (let i = 0; i < 10; i++) {
+          await new Promise((r) => setTimeout(r, 300));
+          const again = await api('/api/asr/status');
+          if (!again.activeSessionId) break;
+        }
+      } catch {}
+    }
+
+    if (source === 'cloud') {
+      if (!st.cloud || !st.cloud.available) {
+        showState('error');
+        D.hint.textContent = '';
+        D.hint.appendChild(el('div', null, '云端字幕不可用：'));
+        const ul = el('ul', 'asr-problem');
+        for (const p of ((st.cloud && st.cloud.problems) || ['原因未知'])) ul.appendChild(el('li', null, p));
+        D.hint.appendChild(ul);
+        return;
+      }
+      const c = lastCourse;
+      if (!c || !c.course_id || !c.sub_id) {
+        showState('error'); hint('这门课没有 course_id/sub_id，开不了云端字幕'); return;
+      }
+      try {
+        const r = await api('/api/asr/start', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            source: 'cloud', course_id: c.course_id, sub_id: c.sub_id,
+            title: c.title || '', room: c.room || '', label: c.sub_title || '',
+          }),
+        });
+        session = r.session; metaRef = r.session;
+        segs = []; lastSeq = 0; renderSegs(); setLive(''); syncIdle();
+        showState(session.status || 'starting');
+        metaText(); connect(session.id);
+      } catch (err) { showState('error'); hint('启动云端字幕失败：' + err.message); }
+      return;
+    }
+
+    // —— 本地 sidecar ——
     if (!st.available) {
       showState('error');
       D.hint.textContent = '';
@@ -171,17 +251,7 @@
       D.meta.textContent = '';
       return;
     }
-    // 服务端是单路的，且刷新页面不会停掉它 —— 有在跑的会话就接回去，别去撞 409
-    if (st.activeSessionId && st.session) {
-      session = st.session; metaRef = st.session;
-      segs = (st.session.finals || []).map((f) => ({ t0Ms: f.t0Ms, t1Ms: f.t1Ms, text: f.text }));
-      lastSeq = (st.session.stats && st.session.stats.events) || 0;
-      renderSegs(); setLive(st.session.partial || '');
-      showState(st.session.status, st.session.error);
-      metaText(); connect(st.session.id);
-      return;
-    }
-    if (!stream || !stream.ref) {
+    if (!lastStream || !lastStream.ref) {
       showState('error');
       hint('这一路没有字幕引用，重新打开这门课');
       return;
@@ -189,13 +259,26 @@
     try {
       const r = await api('/api/asr/start', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ streamRef: stream.ref }),
+        body: JSON.stringify({ streamRef: lastStream.ref }),
       });
       session = r.session; metaRef = r.session;
       segs = []; lastSeq = 0; renderSegs(); setLive(''); syncIdle();
       showState(session.status || 'loading');
       metaText(); connect(session.id);
     } catch (err) { showState('error'); hint('启动识别失败：' + err.message); }
+  }
+
+  // 本地/云端互切。
+  async function toggleSource() {
+    const next = source === 'cloud' ? 'local' : 'cloud';
+    if (isRunning()) {
+      toast('切换到' + sourceLabel(next) + '字幕，当前识别已停止');
+      await stop();
+    }
+    source = next;
+    paintSourceBtn();
+    showState('idle');
+    hint(source === 'cloud' ? '已切到云端字幕，点「开始识别」连接' : '已切到本地识别，点「开始识别」启动');
   }
 
   async function stop() {
@@ -221,7 +304,8 @@
   }
 
   global.ZJU.Asr = {
-    mount, bind, start, stop, isRunning, current, els, syncIdle,
+    mount, bind, start, stop, toggleSource, isRunning, current, els, syncIdle,
+    source: () => source,
     setIdle() { closeSse(); session = null; metaRef = null; segs = []; lastSeq = 0; renderSegs(); setLive(''); showState('idle'); syncIdle(); },
     exportAs, copyText, showState, hint, wallClockSegments: () => segs,
     reset() { closeSse(); session = null; metaRef = null; segs = []; lastSeq = 0; renderSegs(); setLive(''); },

@@ -14,6 +14,7 @@
 'use strict';
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -1333,6 +1334,7 @@ function attachSse(session, res, lastEventId) {
 function asrSessionView(s) {
   return {
     id: s.id, status: s.status, profile: s.profile,
+    source: s.source || 'local',
     course: s.course, room: s.room, label: s.label, kind: s.kind,
     startedAt: s.startedAt, endedAt: s.endedAt || null,
     durationSec: Math.floor(((s.endedAt || Date.now()) - s.startedAt) / 1000),
@@ -1341,6 +1343,7 @@ function asrSessionView(s) {
     finals: s.finals,
     error: s.error || '',
     restarts: s.restarts || 0,
+    frames: s.frameCount || 0,   // 云端字幕帧计数
     stats: { rtf: s.rtf, rssMb: s.rssMb, bytesIn: s.bytesIn, events: s.eventSeq },
   };
 }
@@ -1618,6 +1621,20 @@ function stopAsrSession(id, { force = false } = {}) {
   if (!s) return false;
   if (s.status === 'stopped' || s.status === 'error') return true;
 
+  // 云端会话：断开 socket 即收尾，不走重连。
+  if (s.source === 'cloud') {
+    clearInterval(s.hungTimer);
+    s.status = 'stopped';
+    s.endedAt = Date.now();
+    if (s.qliteSocket) { try { s.qliteSocket.destroy(); } catch {} s.qliteSocket = null; }
+    if (!s.closedEmitted) {
+      s.closedEmitted = true;
+      asrEvent(s, 'closed', { status: 'stopped' });
+    }
+    diagLog('qlite-stop', { session: id, frames: s.frameCount || 0, segments: s.finals.length });
+    return true;
+  }
+
   if (force) {
     clearInterval(s.hungTimer);
     clearTimeout(s.killTimer);
@@ -1694,6 +1711,229 @@ function asrExport(s, format) {
   }
   const body = s.finals.map((f) => `[${ts(f.t0Ms)}] ${f.text}`).join('\n') + '\n';
   return { name: base + '.txt', type: 'text/plain; charset=utf-8', body };
+}
+
+// ---------- 云端字幕 ----------
+const QLITE = {
+  origin: 'https://interactivemeta.cmc.zju.edu.cn',
+  ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36',
+  maxReconnect: 2,   // 意外断开后重试次数
+  reconnectDelayMs: 3000,
+  deadMs: 120000,    // 无字节超时：超过即判连接死
+  metricMs: 30000,   // 定期给前端发 metric
+};
+
+async function fetchQliteTarget(jwt, courseId, subId) {
+  const c = await fetchDetailCourse(jwt, courseId, subId);
+  if (!c) throw new Error('查不到该场次，course_id/sub_id 无效');
+  let sc = {};
+  try { sc = JSON.parse(c.sub_content || '{}'); } catch {}
+  if (!sc.trans_socket_url) throw new Error('这门课没有开启平台语音识别（sub_content 里没有 trans_socket_url）');
+  if (!sc.api_pass || sc.api_pass.qlite_status !== 'running') {
+    throw new Error('平台语音识别不在运行（qlite_status=' + ((sc.api_pass && sc.api_pass.qlite_status) || '无') + '）');
+  }
+  return {
+    wsUrl: sc.trans_socket_url.replace(/^http/i, 'ws') + '/glue/ws',
+    title: c.title || c.sub_title || '', room: c.room_name || '', label: c.sub_title || '',
+  };
+}
+
+function connectQliteSocket(session, wsUrl, onChannelJson) {
+  return new Promise((resolve, reject) => {
+    let u;
+    try { u = new URL(wsUrl); } catch { return reject(new Error('字幕服务地址无效')); }
+    const key = crypto.randomBytes(16).toString('base64');
+    const req = https.request({
+      host: u.hostname, port: u.port || 443, path: u.pathname + u.search, method: 'GET',
+      headers: {
+        Host: u.hostname, Upgrade: 'websocket', Connection: 'Upgrade',
+        'Sec-WebSocket-Key': key, 'Sec-WebSocket-Version': '13',
+        Origin: QLITE.origin, 'User-Agent': QLITE.ua,
+      },
+      timeout: 15000,
+    });
+    req.on('upgrade', (res, socket) => {
+      session.qliteSocket = socket;
+      let buf = Buffer.alloc(0);
+      const send = (str) => {
+        // 客户端帧必须掩码
+        try {
+          const payload = Buffer.from(str, 'utf8');
+          const mask = crypto.randomBytes(4);
+          const masked = Buffer.from(payload.map((b, i) => b ^ mask[i % 4]));
+          let header;
+          if (payload.length < 126) header = Buffer.from([0x81, 0x80 | payload.length]);
+          else {
+            header = Buffer.alloc(4);
+            header[0] = 0x81; header[1] = 0x80 | 126; header.writeUInt16BE(payload.length, 2);
+          }
+          socket.write(Buffer.concat([header, mask, masked]));
+        } catch (e) {
+          diagLog('qlite-send-error', { session: session.id, message: String(e.message || e).slice(0, 120) });
+        }
+      };
+      send('in' + JSON.stringify({ version: '1.9.1' }));
+      socket.on('data', (d) => {
+        session.lastBeatAt = Date.now();       // 任何字节都算活着
+        buf = Buffer.concat([buf, d]);
+        while (buf.length >= 2) {
+          const len0 = buf[1] & 0x7f;
+          let off = 2, len = len0;
+          if (len0 === 126) { if (buf.length < 4) break; len = buf.readUInt16BE(2); off = 4; }
+          else if (len0 === 127) { if (buf.length < 10) break; len = Number(buf.readBigUInt64BE(2)); off = 10; }
+          if (buf.length < off + len) break;
+          const opcode = buf[0] & 0x0f;
+          const payload = buf.slice(off, off + len).toString('utf8');
+          buf = buf.slice(off + len);
+          if (opcode !== 1) continue;
+          if (payload.startsWith('in')) continue;      // socketID 确认
+          else if (payload.startsWith('pi')) send('po'); // 心跳应答
+          else if (payload.startsWith('cd')) {
+            const m = payload.slice(2).match(/^(\d+)&/);
+            if (!m) continue;
+            const body = payload.slice(2 + m[0].length + parseInt(m[1], 10));
+            try { onChannelJson(JSON.parse(body)); }
+            catch (e) {
+              diagLog('qlite-frame-error', { session: session.id, message: String(e.message || e).slice(0, 120) });
+            }
+          }
+        }
+      });
+      const closed = () => {
+        if (session.qliteSocket === socket) session.qliteSocket = null;
+        session.onQliteClose && session.onQliteClose();
+      };
+      socket.on('close', closed);
+      socket.on('error', closed);
+      resolve({ socket, send });
+    });
+    req.on('response', (res) => {
+      res.resume();
+      reject(new Error(`字幕服务握手被拒（HTTP ${res.statusCode}）：会话可能已下课/失效`));
+    });
+    req.on('timeout', () => req.destroy(new Error('字幕服务握手超时')));
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+// qlite 时间戳是 epoch 毫秒，换算成会话相对毫秒供导出与墙钟使用。
+function handleQliteFrame(session, f) {
+  if (!f || typeof f.sourcetext !== 'string') return;
+  const beginAbs = Number(f.text_begin_time) || Number(f.time) || Date.now();
+  const endAbs = Number(f.text_end_time) || Number(f.time) || beginAbs;
+  const rel = (ms) => Math.max(0, ms - session.startedAt);
+  if (!session.sentence) session.sentence = { beginAbs };
+  session.frameCount = (session.frameCount || 0) + 1;
+  session.partial = f.sourcetext;
+  asrEvent(session, 'partial', { text: session.partial, audioMs: rel(endAbs) });
+  if (Number(f.end_time) > 0) {
+    const text = f.sourcetext;
+    session.partial = '';
+    if (text.trim()) {
+      session.finals.push({
+        segment: session.finals.length + 1, text,
+        t0Ms: rel(session.sentence.beginAbs), t1Ms: rel(Math.max(endAbs, session.sentence.beginAbs)),
+      });
+      if (session.finals.length > 10000) session.finals.splice(0, session.finals.length - 10000);
+    }
+    asrEvent(session, 'final', {
+      text, t0Ms: session.finals.length ? session.finals[session.finals.length - 1].t0Ms : 0,
+      t1Ms: session.finals.length ? session.finals[session.finals.length - 1].t1Ms : 0,
+    });
+    session.sentence = null;
+  }
+}
+
+async function startQlitePipeline(session) {
+  const connect = async () => {
+    let target = null, lastErr = null;
+    for (let i = 0; i < 2; i++) {
+      try {
+        target = await withRelogin(() => fetchQliteTarget(readJwt(), session.courseId, session.subId));
+        break;
+      } catch (e) {
+        lastErr = e;
+        if (i === 0) await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
+    if (!target) throw lastErr;
+    session.qliteUrl = target.wsUrl;
+    session.lastBeatAt = Date.now();
+    await connectQliteSocket(session, target.wsUrl, (f) => {
+      if (session.status === 'loading') { session.status = 'running'; asrEvent(session, 'ready', { model: 'qlite' }); }
+      handleQliteFrame(session, f);
+    });
+  };
+  session.onQliteClose = () => {
+    if (session.status === 'stopping' || session.status === 'stopped' || session.status === 'error') return;
+    if ((session.restarts || 0) < QLITE.maxReconnect) {
+      session.restarts = (session.restarts || 0) + 1;
+      asrEvent(session, 'restart', { code: 1006, restarts: session.restarts });
+      diagLog('qlite-reconnect', { session: session.id, restarts: session.restarts });
+      setTimeout(() => {
+        if (['stopping', 'stopped', 'error'].includes(session.status)) return;
+        startQlitePipeline(session).catch((e) => {
+          session.status = 'error';
+          session.error = '重连失败：' + e.message;
+          asrEvent(session, 'error', { code: 'QLITE_CONNECT', message: e.message, recoverable: false });
+          asrEvent(session, 'closed', { status: 'error' });
+        });
+      }, QLITE.reconnectDelayMs);
+      return;
+    }
+    session.status = 'error';
+    session.error = '字幕连接断开且重试用尽';
+    session.endedAt = Date.now();
+    asrEvent(session, 'closed', { status: 'error' });
+  };
+
+  // 看门狗：无字节才算连接死；无字幕帧是正常状态。
+  clearInterval(session.hungTimer);
+  session.hungTimer = setInterval(() => {
+    if (!['running', 'loading'].includes(session.status)) return;
+    if (Date.now() - (session.lastBeatAt || session.startedAt) > QLITE.deadMs) {
+      diagLog('qlite-dead', { session: session.id });
+      if (session.qliteSocket) { try { session.qliteSocket.destroy(); } catch {} }
+      return; // destroy 会触发 onQliteClose 的重连路径
+    }
+    if (session.status === 'running') {
+      asrEvent(session, 'metric', { frames: session.frameCount || 0, audioMs: 0 });
+    }
+  }, QLITE.metricMs);
+
+  await connect();
+  // 没有字幕帧也先进入 running
+  if (session.status === 'starting') {
+    session.status = 'running';
+    asrEvent(session, 'ready', { model: 'qlite' });
+  }
+  diagLog('qlite-start', { session: session.id, host: (() => { try { return new URL(session.qliteUrl).hostname; } catch { return ''; } })() });
+}
+
+function startQliteSession(courseId, subId, meta = {}) {
+  const active = [...asrSessions.values()].find((s) => s.status !== 'stopped' && s.status !== 'error');
+  if (active) { const e = new Error(`已有一路识别在进行（session ${active.id}），先停掉它`); e.statusCode = 409; throw e; }
+  const id = ++asrSeq;
+  const session = {
+    id, ref: null, source: 'cloud', profile: 'qlite',
+    courseId: String(courseId), subId: String(subId),
+    kind: 'cloud', label: meta.label || '', course: meta.title || '', room: meta.room || '',
+    status: 'starting', startedAt: Date.now(), endedAt: null,
+    finals: [], partial: '', events: [], eventSeq: 0, lastSeq: 0,
+    clients: new Set(), protocolErrors: 0, restarts: 0,
+    bytesIn: 0, audioMs: 0, rtf: null, rssMb: null,
+    stderrTail: '', stderrBytes: 0, ffmpegStderr: '', error: '',
+    qliteSocket: null, qliteUrl: '', frameCount: 0, sentence: null,
+  };
+  asrSessions.set(id, session);
+  startQlitePipeline(session).catch((e) => {
+    session.status = 'error';
+    session.error = '启动失败：' + e.message;
+    asrEvent(session, 'error', { code: 'QLITE_CONNECT', message: e.message, recoverable: false });
+    asrEvent(session, 'closed', { status: 'error' });
+  });
+  return session;
 }
 
 // ---------- 封面缩略图 ----------
@@ -2779,7 +3019,11 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/asr/status' && method === 'GET') {
       const avail = asrAvailability(true);
       const active = avail.activeSessionId ? asrSessions.get(avail.activeSessionId) : null;
+      const cloud = readJwt() || hasCreds()
+        ? { available: true, problems: [] }
+        : { available: false, problems: ['未配置 JWT 也没有账密，换不到字幕服务地址'] };
       return sendJson(res, 200, Object.assign(avail, {
+        cloud,
         session: active ? asrSessionView(active) : null,
         // 诊断信息：只给判定与字节数，不带路径中的用户名
         protocolErrors: active ? active.protocolErrors : 0,
@@ -2788,9 +3032,18 @@ const server = http.createServer(async (req, res) => {
 
     if (p === '/api/asr/start' && method === 'POST') {
       const body = await readBody(req);
-      if (!body.streamRef) return sendJson(res, 400, { error: '缺少 streamRef' });
       try {
-        const s = startAsrSession(String(body.streamRef), {});
+        // 本地 = streamRef，云端 = course_id/sub_id
+        let s;
+        if (body.source === 'cloud') {
+          if (!body.course_id || !body.sub_id) return sendJson(res, 400, { error: '云端字幕缺少 course_id/sub_id' });
+          s = startQliteSession(body.course_id, body.sub_id, {
+            title: String(body.title || ''), room: String(body.room || ''), label: String(body.label || ''),
+          });
+        } else {
+          if (!body.streamRef) return sendJson(res, 400, { error: '缺少 streamRef' });
+          s = startAsrSession(String(body.streamRef), {});
+        }
         return sendJson(res, 200, { session: asrSessionView(s) });
       } catch (e) {
         return sendJson(res, e.statusCode || 500, { error: e.message });
@@ -2845,6 +3098,13 @@ const server = http.createServer(async (req, res) => {
         stderrBytes: s.stderrBytes,
         workerStderr: stripUrls(s.stderrTail).slice(-4000),
         ffmpegStderr: stripUrls(s.ffmpegStderr).slice(-4000),
+        // 云端连接状态，只给 host
+        qlite: s.source === 'cloud' ? {
+          connected: !!s.qliteSocket,
+          host: (() => { try { return new URL(s.qliteUrl).hostname; } catch { return ''; } })(),
+          frames: s.frameCount || 0,
+          lastBeatAt: s.lastBeatAt || null,
+        } : null,
       });
     }
 

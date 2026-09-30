@@ -16,15 +16,17 @@ Windows 本地工具，用于查看与录制已获授权访问的智云课堂直
 
 - 直播查看、多机位切换与条件筛选。
 - 手动录制、预约录制与断流重试。
-- 可选本地 ASR 实时字幕；安装方法见 [`asr/README.md`](asr/README.md)。
+- 可选实时字幕，本地或云端两种来源；本地安装方法见 [`asr/README.md`](asr/README.md)。
 - 可选手动同步第三方教评分数。
 - 可选直播封面抓帧，默认关闭。
+- 附带命令行字幕抓取工具。
 
 ## 代码结构
 
 ```text
 app/                    Node.js 服务端与静态前端
 asr/                    可选本地语音识别 sidecar
+tools/                  字幕抓取工具
 download-ffmpeg.bat     ffmpeg 安装脚本
 start.bat / stop.bat    Windows 启停入口
 ```

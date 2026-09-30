@@ -6,6 +6,8 @@ The HTTP server binds to `127.0.0.1`. Do not expose it through a public reverse 
 
 The HLS proxy accepts only `*.zju.edu.cn` hosts.
 
+The optional cloud subtitle source makes one additional outbound connection to the school subtitle WebSocket endpoint under zju.edu.cn.
+
 ## Sensitive local state
 
 Runtime state is stored in the current user's home directory:

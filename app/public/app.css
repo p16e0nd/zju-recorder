@@ -420,14 +420,15 @@
   .asr.idle .asr-idle { display: block; }
   .asr.idle .asr-live { display: none; }
   .asr .asr-body { min-height: 132px; }
-  .asr-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px 8px; flex-wrap: wrap; }
-  .asr-head button { white-space: nowrap; }
+  /* 头部强制一行 */
+  .asr-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px 8px; flex-wrap: nowrap; }
+  .asr-head button { white-space: nowrap; flex: none; }
   .asr-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); flex: none; }
   .asr-dot.load { background: var(--warn); animation: pulse 1.1s ease-in-out infinite; }
   .asr-dot.live { background: var(--ok); animation: pulse 1.1s ease-in-out infinite; }
   .asr-dot.err { background: var(--danger); }
   @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
-  .asr-state { font-size: 14px; font-weight: 600; }
+  .asr-state { font-size: 14px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .asr-meta { padding: 0 16px 10px; font-size: 12px; color: var(--text3); border-bottom: 1px solid var(--line); }
   .asr-live { padding: 10px 16px 0; font-size: 14px; color: var(--text2); min-height: 22px; }
   .asr-live .ts { margin-right: 8px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--blue); }
